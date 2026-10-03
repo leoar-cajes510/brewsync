@@ -1,0 +1,479 @@
+/* ==========================================================================
+   Settings → Payments (design/stitch/settings-payments.jpg)
+   Ordered payment method cards with one expanded at a time (left) | sticky
+   POS payment preview (right) | sticky action bar. Scoped under
+   .settings-payments.
+   ========================================================================== */
+.settings-payments {
+  --py-side: clamp(340px, 30vw, 520px);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--py-side);
+  gap: var(--space-4) var(--space-5);
+  align-items: start;
+  min-width: 0;
+}
+
+.settings-payments .py-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.settings-payments .py-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.settings-payments .py-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.settings-payments .py-head p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-payments .py-head .badge {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.settings-payments .py-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid #f1d7b8;
+  border-radius: var(--radius-md);
+  background: #fdf6ec;
+  font-size: 12px;
+  color: #8a4b12;
+}
+
+/* Method cards */
+.settings-payments .py-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-payments .py-method {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-payments .py-method--off {
+  background: #faf9f7;
+}
+
+.settings-payments .py-method__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+
+.settings-payments .py-method--open .py-method__head {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+}
+
+.settings-payments .py-order {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-payments .py-order__btn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.settings-payments .py-order__btn:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+}
+
+.settings-payments .py-order__btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.settings-payments .py-method__icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-muted);
+  color: #6b4430;
+}
+
+.settings-payments .py-method--off .py-method__icon,
+.settings-payments .py-method--off .py-method__title strong {
+  color: var(--color-text-muted);
+}
+
+.settings-payments .py-method__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-payments .py-method__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-payments .py-method__title strong {
+  font-size: 14px;
+}
+
+.settings-payments .py-method__text p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-payments .py-position {
+  padding: 1px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.settings-payments .py-configure {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.settings-payments .py-configure svg {
+  transition: transform 0.15s;
+}
+
+.settings-payments .py-configure[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.settings-payments .toggle {
+  flex-shrink: 0;
+}
+
+.settings-payments .toggle__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.settings-payments .py-options {
+  margin: 0;
+  padding: 0 var(--space-4);
+  list-style: none;
+}
+
+.settings-payments .py-options li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0 var(--space-3) 36px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-payments .py-options li:last-child {
+  border-bottom: none;
+}
+
+.settings-payments .py-options li > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.settings-payments .py-options strong {
+  font-size: 13px;
+}
+
+.settings-payments .py-options span {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-payments .py-options .py-options__hint {
+  justify-content: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-payments .py-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-payments .py-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Preview */
+.settings-payments .py-side {
+  position: sticky;
+  top: var(--space-4);
+  min-width: 0;
+}
+
+.settings-payments .py-card {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-payments .py-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+}
+
+.settings-payments .py-card__head h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 15px;
+}
+
+.settings-payments .py-card__head h2 svg {
+  color: #6b4430;
+}
+
+.settings-payments .py-card__head p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-payments .py-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+}
+
+.settings-payments .py-due {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-payments .py-due strong {
+  font-size: 20px;
+  color: var(--color-text);
+}
+
+.settings-payments .py-preview__label {
+  margin-top: var(--space-1);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.settings-payments .py-tenders {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.settings-payments .py-tender {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.settings-payments .py-tender span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-payments .py-tender--active {
+  border-color: var(--color-brand);
+  background: var(--color-brand);
+  color: #fff;
+}
+
+.settings-payments .py-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.settings-payments .py-step .py-preview__label {
+  margin: 0;
+}
+
+.settings-payments .py-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-payments .py-field b {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.settings-payments .py-field--result {
+  border-style: dashed;
+  background: var(--color-surface-muted);
+}
+
+.settings-payments .py-step__muted {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-payments .py-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 12px;
+}
+
+.settings-payments .py-complete {
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-brand);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  cursor: default;
+}
+
+.settings-payments .py-preview__caption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: var(--space-3) var(--space-4) var(--space-4);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* Sticky action bar */
+.settings-payments .py-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  box-shadow: 0 -4px 16px rgb(59 42 36 / 0.06);
+  backdrop-filter: blur(6px);
+}
+
+.settings-payments .py-actions__state {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-payments .py-actions__buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ---------- Responsive (keep last) ---------- */
+@media (max-width: 1500px) {
+  .settings-payments .py-configure span {
+    display: none;
+  }
+}

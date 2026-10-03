@@ -1,0 +1,228 @@
+/* Login, setup wizard, device activation and session states. Uses the shared design tokens. */
+
+.auth-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  min-height: 100vh;
+  padding: var(--space-8) var(--space-4);
+  background: var(--color-bg);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 20px;
+  color: var(--color-brand);
+}
+
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 400px;
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.auth-card--wide {
+  max-width: 760px;
+}
+
+.auth-card__header h1 {
+  margin: 0 0 var(--space-1);
+  font-size: 20px;
+}
+
+.auth-card__header p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.auth-card__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.auth-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.auth-steps__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.auth-steps__item--active {
+  background: var(--color-brand);
+  color: #fff;
+}
+
+.auth-steps__item--done {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.auth-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.auth-grid__wide {
+  grid-column: 1 / -1;
+}
+
+.auth-grid__inline-error {
+  align-self: end;
+  padding-bottom: 10px;
+}
+
+.auth-hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.auth-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.auth-fieldset--grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.auth-fieldset legend {
+  padding: 0 var(--space-1);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.auth-toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.auth-toggle-row > :first-child {
+  min-width: 150px;
+}
+
+.auth-error,
+.auth-notice {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+}
+
+.auth-error {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.auth-notice {
+  background: var(--color-info-soft);
+  color: var(--color-info);
+}
+
+.auth-method {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.auth-link {
+  font-size: 13px;
+}
+
+.auth-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Session banner inside the app shell. */
+.terminal-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-6);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  font-size: 13px;
+}
+
+.terminal-banner span {
+  flex: 1;
+}
+
+button.terminal-panel__lock {
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+/* Shared inline status line for API loading/errors inside existing pages. */
+.api-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+}
+
+.api-status--error {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.api-status--info {
+  background: var(--color-info-soft);
+  color: var(--color-info);
+}
+
+.api-status button {
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .auth-grid,
+  .auth-fieldset--grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+button.orders__sync,
+button.history__sync,
+button.receipts__sync {
+  cursor: pointer;
+}

@@ -1,0 +1,569 @@
+/* ==========================================================================
+   Admin → Archived Orders (design/stitch/admin-archived-orders.jpg)
+   Toolbar, four summary cards, then register table | sticky order-details
+   panel when a row is selected. Page scrolls vertically; the panel sticks and
+   scrolls internally. Scoped under .admin-archived / .modal.
+   ========================================================================== */
+.admin-archived {
+  --arc-panel: clamp(340px, 24vw, 400px);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--arc-panel);
+  gap: var(--space-4);
+  align-items: start;
+  min-width: 0;
+}
+
+.admin-archived--no-panel {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-archived .arc-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.admin-archived .arc-muted { font-size: 12px; color: var(--color-text-muted); }
+
+/* Toolbar */
+.admin-archived .arc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.admin-archived .arc-toolbar__search {
+  flex: 1 1 260px;
+}
+
+.admin-archived .arc-toolbar__select {
+  width: 190px;
+}
+
+.admin-archived .arc-toolbar__select .input {
+  height: 36px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-archived .arc-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.admin-archived .arc-sample-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px dashed #c4b5fd;
+  border-radius: 999px;
+  color: #6d28d9;
+}
+
+.admin-archived .arc-sample-toggle .toggle__label {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.admin-archived .arc-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid #c4b5fd;
+  border-radius: var(--radius-md);
+  background: #f5f0ff;
+  font-size: 12px;
+  color: #4c1d95;
+}
+
+.admin-archived .arc-banner svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Summary */
+.admin-archived .arc-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.admin-archived .arc-kpi {
+  min-width: 0;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-archived .arc-kpi__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.admin-archived .arc-kpi__value {
+  display: block;
+  margin-top: var(--space-2);
+  overflow: hidden;
+  font-size: 22px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-archived .arc-kpi__value small {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.admin-archived .arc-kpi--success .arc-kpi__value,
+.admin-archived .arc-kpi--success .arc-kpi__head svg {
+  color: var(--color-success);
+}
+
+.admin-archived .arc-kpi--warning .arc-kpi__value,
+.admin-archived .arc-kpi--warning .arc-kpi__head svg {
+  color: #c2410c;
+}
+
+.admin-archived .arc-kpi p {
+  margin: 4px 0 0;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-archived .arc-card {
+  min-width: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-archived .arc-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-archived .arc-card__head h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.admin-archived .arc-card__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 3px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* Table */
+.admin-archived .arc-table .table-wrap {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.admin-archived .arc-table tbody tr {
+  cursor: pointer;
+}
+
+.admin-archived .arc-table .arc-row--selected td {
+  background: #fbf3ea;
+}
+
+.admin-archived .arc-table .arc-row--selected td:first-child {
+  box-shadow: inset 3px 0 0 #b8844f;
+}
+
+.admin-archived .arc-table .empty-state {
+  padding: var(--space-8) var(--space-4);
+}
+
+.admin-archived .arc-num,
+.admin-archived .arc-total {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.admin-archived .arc-two {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.admin-archived .arc-two > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-archived .arc-two em {
+  font-size: 11px;
+  font-style: normal;
+  color: var(--color-text-muted);
+}
+
+.admin-archived .arc-type {
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.admin-archived .arc-type--delivery {
+  border-color: #f3cfb5;
+  background: #fdeee3;
+  color: #c2410c;
+}
+
+.admin-archived .arc-pay {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-archived .arc-status {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.admin-archived .arc-status .badge {
+  white-space: nowrap;
+}
+
+.admin-archived .arc-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.admin-archived .arc-actions .icon-btn {
+  width: 28px;
+  height: 28px;
+}
+
+.admin-archived .arc-restore-icon:not(:disabled) {
+  color: #c2410c;
+}
+
+.admin-archived .arc-restore-icon:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.admin-archived .arc-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* Details panel */
+.admin-archived .arc-panel {
+  position: sticky;
+  top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-height: calc(100vh - 200px);
+  min-height: 420px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-archived .arc-panel__header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-archived .arc-panel__icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface-muted);
+}
+
+.admin-archived .arc-panel__title {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-archived .arc-panel__title h2 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.admin-archived .arc-panel__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+
+.admin-archived .arc-panel__body > * {
+  flex-shrink: 0;
+}
+
+.admin-archived .arc-facts {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #faf8f5;
+}
+
+.admin-archived .arc-fact {
+  display: grid;
+  grid-template-columns: 16px 84px minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+  padding: var(--space-3);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.admin-archived .arc-fact + .arc-fact {
+  border-top: 1px solid var(--color-border);
+}
+
+.admin-archived .arc-fact > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 0;
+  text-align: right;
+}
+
+.admin-archived .arc-fact strong {
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.admin-archived .arc-fact em {
+  font-size: 11px;
+  font-style: normal;
+}
+
+.admin-archived .arc-section-head h3,
+.admin-archived .arc-payment h3 {
+  margin: 0 0 var(--space-2);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.admin-archived .arc-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-archived .arc-items li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+}
+
+.admin-archived .arc-items li > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin-archived .arc-items em {
+  font-size: 11px;
+  font-style: normal;
+  color: var(--color-text-muted);
+}
+
+.admin-archived .arc-items__qty {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.admin-archived .arc-totals,
+.admin-archived .arc-payment {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--color-border);
+}
+
+.admin-archived .arc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: 12px;
+}
+
+.admin-archived .arc-row > span:first-child {
+  color: var(--color-text-muted);
+}
+
+.admin-archived .arc-row > span:last-child {
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.admin-archived .arc-row--strong {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.admin-archived .arc-row--strong > span:first-child {
+  color: var(--color-text);
+}
+
+.admin-archived .arc-row--neg > span:last-child {
+  color: var(--color-danger);
+}
+
+.admin-archived .arc-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: #fff8e6;
+  font-size: 12px;
+}
+
+.admin-archived .arc-panel__footer {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.admin-archived .arc-panel__hint {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.admin-archived .btn.arc-restore-btn:not(:disabled) {
+  border-color: #f1d7b8;
+  background: #fdf1e3;
+  color: #9a4d17;
+}
+
+/* Receipt modal (portalled) */
+.modal .arc-receipt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ---------- Responsive (keep last) ---------- */
+@media (max-width: 1600px) {
+  .admin-archived .arc-table th:nth-child(6),
+  .admin-archived .arc-table td:nth-child(6) {
+    display: none;
+  }
+
+  .admin-archived .arc-toolbar__select {
+    width: 170px;
+  }
+}
+
+@media (max-width: 1500px) {
+  .admin-archived:not(.admin-archived--no-panel) .arc-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-archived:not(.admin-archived--no-panel) .arc-table th:nth-child(4),
+  .admin-archived:not(.admin-archived--no-panel) .arc-table td:nth-child(4),
+  .admin-archived:not(.admin-archived--no-panel) .arc-table th:nth-child(5),
+  .admin-archived:not(.admin-archived--no-panel) .arc-table td:nth-child(5) {
+    display: none;
+  }
+}
+
+/* Cancelled orders awaiting review (manual archive, Q-ARC-4). */
+.arc-review {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.arc-review__row {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr) 110px auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--color-border);
+}

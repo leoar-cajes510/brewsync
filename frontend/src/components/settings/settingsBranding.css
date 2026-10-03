@@ -1,0 +1,632 @@
+/* ==========================================================================
+   Settings → Branding (design/stitch/settings-branding.jpg)
+   Logo, brand colors, protected status colors (left) | sticky live preview
+   (right) | sticky action bar. Scoped under .settings-branding.
+   Preview colors come from --pv-* custom properties set inline.
+   ========================================================================== */
+.settings-branding {
+  --br-side: clamp(360px, 30vw, 520px);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--br-side);
+  gap: var(--space-4) var(--space-5);
+  align-items: start;
+  min-width: 0;
+}
+
+.settings-branding .br-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.settings-branding .br-card {
+  min-width: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-branding .br-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+}
+
+.settings-branding .br-card__head h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 15px;
+}
+
+.settings-branding .br-card__head h2 svg {
+  color: #6b4430;
+}
+
+.settings-branding .br-card__head p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-branding .br-card__head .badge {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.settings-branding .br-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-branding .br-hint svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Logo */
+.settings-branding .br-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  margin: 0 var(--space-4) var(--space-4);
+  padding: var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: #faf8f5;
+}
+
+.settings-branding .br-logo--drag {
+  border-color: #b8844f;
+  background: #fbf3ea;
+}
+
+.settings-branding .br-logo__frame {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  /* Checkerboard so transparent logos read clearly. */
+  background-color: #fff;
+  background-image: linear-gradient(45deg, #f1ede8 25%, transparent 25%), linear-gradient(-45deg, #f1ede8 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #f1ede8 75%), linear-gradient(-45deg, transparent 75%, #f1ede8 75%);
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  background-size: 16px 16px;
+}
+
+.settings-branding .br-logo__frame img {
+  max-width: 88%;
+  max-height: 88%;
+  object-fit: contain;
+}
+
+.settings-branding .br-logo__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.settings-branding .br-logo__info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.settings-branding .br-logo__file {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--space-2);
+  margin: 0;
+  font-size: 12px;
+}
+
+.settings-branding .br-logo__file strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-branding .br-logo__file span {
+  color: var(--color-text-muted);
+}
+
+.settings-branding .br-logo__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.settings-branding .btn.br-logo__remove {
+  color: var(--color-danger);
+}
+
+/* Colors */
+.settings-branding .br-colors {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.settings-branding .color-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #faf8f5;
+}
+
+.settings-branding .color-field__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.settings-branding .color-field__head label {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.settings-branding .color-field__head span {
+  padding: 1px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.settings-branding .color-field__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-branding .color-field__swatch {
+  position: relative;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgb(0 0 0 / 0.15);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.settings-branding .color-field__swatch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.settings-branding .color-field__hex {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.settings-branding .color-field__desc {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+
+.settings-branding .br-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 var(--space-4) var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid #f1d7b8;
+  border-radius: var(--radius-md);
+  background: #fdf6ec;
+  list-style: none;
+  font-size: 12px;
+  color: #8a4b12;
+}
+
+.settings-branding .br-warnings li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.settings-branding .br-warnings svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Semantic */
+.settings-branding .br-protected {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 var(--space-4) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-branding .br-semantic {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.settings-branding .br-semantic__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid;
+  border-radius: var(--radius-md);
+}
+
+.settings-branding .br-semantic__item > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.settings-branding .br-semantic__item strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-branding .br-semantic__item span:not(.br-semantic__dot) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.settings-branding .br-semantic__item > svg {
+  flex-shrink: 0;
+}
+
+.settings-branding .br-semantic__dot {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.settings-branding .br-semantic__item--success { border-color: #cfe5d2; background: #f1f8f2; color: var(--color-success); }
+.settings-branding .br-semantic__item--warning { border-color: #f1dcbc; background: #fdf6ec; color: var(--color-warning); }
+.settings-branding .br-semantic__item--danger { border-color: #f2cdc9; background: #fdf1f0; color: var(--color-danger); }
+.settings-branding .br-semantic__item--info { border-color: #cfdaf0; background: #f1f5fc; color: var(--color-info); }
+
+.settings-branding .br-semantic__item strong {
+  color: var(--color-text);
+}
+
+.settings-branding .br-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-branding .br-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Live preview */
+.settings-branding .br-side {
+  position: sticky;
+  top: var(--space-4);
+  min-width: 0;
+}
+
+.settings-branding .br-preview {
+  margin: 0 var(--space-4);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--pv-bg);
+  color: #1c1917;
+}
+
+.settings-branding .pv-shell {
+  display: flex;
+  min-height: 300px;
+}
+
+.settings-branding .pv-rail {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 48px;
+  padding: 10px 0;
+  border-right: 1px solid rgb(0 0 0 / 0.08);
+  background: #fff;
+}
+
+.settings-branding .pv-rail__logo {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--pv-primary);
+  color: var(--pv-primary-text);
+}
+
+.settings-branding .pv-rail__logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+}
+
+.settings-branding .pv-rail__item {
+  width: 30px;
+  height: 26px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.06);
+}
+
+.settings-branding .pv-rail__item--active {
+  background: var(--pv-primary);
+}
+
+.settings-branding .pv-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.settings-branding .pv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+}
+
+.settings-branding .pv-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--pv-primary);
+}
+
+.settings-branding .pv-header__brand img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.settings-branding .pv-header__brand strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-branding .pv-header__reg {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--color-success);
+}
+
+.settings-branding .pv-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.settings-branding .pv-tab {
+  padding: 3px 8px;
+  border: 1px solid rgb(0 0 0 / 0.1);
+  border-radius: 4px;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.settings-branding .pv-tab--active {
+  border-color: var(--pv-accent);
+  background: var(--pv-accent);
+  color: var(--pv-accent-text);
+}
+
+.settings-branding .pv-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  border: 1.5px solid var(--pv-accent);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 11px;
+}
+
+.settings-branding .pv-item > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-branding .pv-item em {
+  font-style: normal;
+  color: #78716c;
+}
+
+.settings-branding .pv-item__img {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.05);
+  color: #78716c;
+}
+
+.settings-branding .pv-chip {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--pv-accent);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--pv-accent-text);
+}
+
+.settings-branding .pv-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Semantic badges intentionally use system tokens, never --pv-* colors. */
+.settings-branding .pv-badge {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.settings-branding .pv-badge--success { background: #e6f2ea; color: var(--color-success); }
+.settings-branding .pv-badge--warning { background: #fdf1e3; color: var(--color-warning); }
+.settings-branding .pv-badge--danger { background: #fbe4e2; color: var(--color-danger); }
+
+.settings-branding .pv-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--pv-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pv-primary-text);
+  cursor: default;
+}
+
+.settings-branding .br-preview__caption {
+  margin: var(--space-3) var(--space-4) var(--space-4);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.settings-branding .br-preview__caption code {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* Sticky action bar */
+.settings-branding .br-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  box-shadow: 0 -4px 16px rgb(59 42 36 / 0.06);
+  backdrop-filter: blur(6px);
+}
+
+.settings-branding .br-actions__state {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-branding .br-actions__buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ---------- Responsive (keep last) ---------- */
+@media (max-width: 1500px) {
+  .settings-branding .br-colors {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-branding .color-field {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .settings-branding .color-field__desc,
+  .settings-branding .color-field .field__error {
+    grid-column: 1 / -1;
+  }
+
+  .settings-branding .br-semantic {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

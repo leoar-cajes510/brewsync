@@ -1,0 +1,263 @@
+/* ==========================================================================
+   Settings → Preferences (design/stitch/settings-preferences.jpg)
+   Grouped preference cards (left) | sticky current-preferences summary
+   (right) | sticky action bar. Scoped under .settings-preferences.
+   ========================================================================== */
+.settings-preferences {
+  --pf-side: clamp(340px, 30vw, 500px);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--pf-side);
+  gap: var(--space-4) var(--space-5);
+  align-items: start;
+  min-width: 0;
+}
+
+.settings-preferences .pf-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.settings-preferences .pf-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-preferences .pf-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+}
+
+.settings-preferences .pf-card__head h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 15px;
+}
+
+.settings-preferences .pf-card__head h2 svg {
+  color: #6b4430;
+}
+
+.settings-preferences .pf-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-preferences .pf-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin: 0 var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-preferences .pf-row:last-child {
+  border-bottom: none;
+}
+
+.settings-preferences .pf-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-preferences .pf-row--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.settings-preferences .pf-row--stack .tabs {
+  width: 100%;
+}
+
+.settings-preferences .pf-row--stack .tabs__tab {
+  flex: 1;
+}
+
+.settings-preferences .pf-row__label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settings-preferences .pf-row small {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-preferences .pf-row--disabled .pf-row__label {
+  color: var(--color-text-muted);
+}
+
+.settings-preferences .pf-tag {
+  padding: 0 5px;
+  border: 1px solid #f1d7b8;
+  border-radius: 4px;
+  background: #fdf6ec;
+  font-size: 10px;
+  font-weight: 700;
+  color: #8a4b12;
+}
+
+.settings-preferences .toggle {
+  flex-shrink: 0;
+}
+
+.settings-preferences .toggle__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.settings-preferences .pf-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-preferences .pf-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Summary */
+.settings-preferences .pf-side {
+  position: sticky;
+  top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.settings-preferences .pf-summary {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+}
+
+.settings-preferences .pf-summary > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-preferences .pf-summary > div:last-child {
+  border-bottom: none;
+}
+
+.settings-preferences .pf-summary dt {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.settings-preferences .pf-pill {
+  min-width: 0;
+  margin: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.settings-preferences .pf-pill--on {
+  border-color: #cfe5d2;
+  background: #f1f8f2;
+  color: var(--color-success);
+}
+
+.settings-preferences .pf-pill--dark {
+  border-color: var(--color-brand);
+  border-radius: 4px;
+  background: var(--color-brand);
+  color: #fff;
+}
+
+.settings-preferences .pf-card--info {
+  padding: var(--space-4);
+}
+
+.settings-preferences .pf-card--info h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 var(--space-2);
+  font-size: 13px;
+}
+
+.settings-preferences .pf-card--info h3 svg {
+  color: var(--color-success);
+}
+
+.settings-preferences .pf-card--info p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+/* Sticky action bar */
+.settings-preferences .pf-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  box-shadow: 0 -4px 16px rgb(59 42 36 / 0.06);
+  backdrop-filter: blur(6px);
+}
+
+.settings-preferences .pf-actions__state {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-preferences .pf-actions__buttons {
+  display: flex;
+  gap: var(--space-2);
+}

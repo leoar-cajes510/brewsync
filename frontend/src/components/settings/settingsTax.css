@@ -1,0 +1,392 @@
+/* ==========================================================================
+   Settings → Tax (design/stitch/settings-tax.jpg)
+   Enable / details / mode / receipt display (left) | sticky example
+   calculation (right) | sticky action bar. Scoped under .settings-tax.
+   ========================================================================== */
+.settings-tax {
+  --tx-side: clamp(360px, 32vw, 560px);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--tx-side);
+  gap: var(--space-4) var(--space-5);
+  align-items: start;
+  min-width: 0;
+}
+
+.settings-tax .tx-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.settings-tax .tx-card {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-tax .tx-card--off > :not(.tx-card__head) {
+  opacity: 0.55;
+}
+
+.settings-tax .tx-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+}
+
+.settings-tax .tx-card__head h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 15px;
+}
+
+.settings-tax .tx-card__head h2 svg {
+  color: #6b4430;
+}
+
+.settings-tax .tx-card__head p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-tax .tx-card__head .badge {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Enable */
+.settings-tax .tx-enable {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.settings-tax .tx-enable__icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-muted);
+  color: #6b4430;
+}
+
+.settings-tax .tx-enable__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-tax .tx-enable h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 15px;
+}
+
+.settings-tax .tx-enable p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-tax .toggle {
+  flex-shrink: 0;
+}
+
+.settings-tax .toggle__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Details */
+.settings-tax .tx-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.settings-tax .tx-fields__wide {
+  grid-column: 1 / -1;
+}
+
+.settings-tax .tx-rate__wrap {
+  position: relative;
+}
+
+.settings-tax .tx-rate__wrap .input {
+  width: 100%;
+  padding-right: 32px;
+}
+
+.settings-tax .tx-rate__wrap span {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+/* Mode */
+.settings-tax .tx-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.settings-tax .tx-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font: inherit;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-tax .tx-mode:disabled {
+  cursor: not-allowed;
+}
+
+.settings-tax .tx-mode--active {
+  border: 2px solid var(--color-brand);
+  padding: calc(var(--space-3) - 1px) calc(var(--space-4) - 1px);
+  background: #faf6f2;
+}
+
+.settings-tax .tx-mode__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-tax .tx-mode__title .badge {
+  margin-left: auto;
+}
+
+.settings-tax .tx-mode__desc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+
+.settings-tax .tx-mode__hint {
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Receipt toggles */
+.settings-tax .tx-toggles {
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-2);
+  list-style: none;
+}
+
+.settings-tax .tx-toggles li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.settings-tax .tx-toggles li > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.settings-tax .tx-toggles strong {
+  font-size: 13px;
+}
+
+.settings-tax .tx-toggles span {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-tax .tx-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-tax .tx-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Preview */
+.settings-tax .tx-side {
+  position: sticky;
+  top: var(--space-4);
+  min-width: 0;
+}
+
+.settings-tax .tx-basis {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0 var(--space-4) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-tax .tx-calc {
+  margin: 0 var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.settings-tax .tx-calc > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.settings-tax .tx-calc dt {
+  min-width: 0;
+  color: var(--color-text-muted);
+}
+
+.settings-tax .tx-calc dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.settings-tax .tx-calc__sub {
+  font-size: 12px !important;
+}
+
+.settings-tax .tx-calc__total {
+  margin-top: 4px;
+  padding-top: 10px !important;
+  border-top: 1px solid var(--color-border);
+}
+
+.settings-tax .tx-calc__total dt,
+.settings-tax .tx-calc__total dd {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.settings-tax .tx-calc__explain {
+  margin: var(--space-2) var(--space-4) var(--space-3);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.settings-tax .tx-receipt {
+  margin: 0 var(--space-4) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+
+.settings-tax .tx-receipt__label {
+  display: block;
+  margin-bottom: 6px;
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.settings-tax .tx-receipt__line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 2px 0;
+}
+
+.settings-tax .tx-receipt__total {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--color-border);
+  font-weight: 800;
+}
+
+.settings-tax .tx-receipt__reg {
+  margin-top: 6px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+/* Sticky action bar */
+.settings-tax .tx-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  box-shadow: 0 -4px 16px rgb(59 42 36 / 0.06);
+  backdrop-filter: blur(6px);
+}
+
+.settings-tax .tx-actions__state {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-tax .tx-actions__buttons {
+  display: flex;
+  gap: var(--space-2);
+}

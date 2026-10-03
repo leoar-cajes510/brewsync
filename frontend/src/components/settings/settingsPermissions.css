@@ -1,0 +1,385 @@
+/* ==========================================================================
+   Settings → Permissions (design/stitch/settings-permissions.jpg)
+   Role selector + role summary (top) | 3-column permission groups |
+   sticky action bar. Scoped under .settings-permissions.
+   ========================================================================== */
+.settings-permissions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.settings-permissions .pm-card {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-permissions .pm-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+/* Role selector */
+.settings-permissions .pm-roles {
+  padding: var(--space-4);
+}
+
+.settings-permissions .pm-roles__head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.settings-permissions .pm-roles__head span:last-child {
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.settings-permissions .pm-roles__list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.settings-permissions .pm-role {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font: inherit;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-permissions .pm-role:hover {
+  background: var(--color-surface-muted);
+}
+
+.settings-permissions .pm-role--active {
+  border: 2px solid var(--color-brand);
+  padding: calc(var(--space-3) - 1px);
+  background: #faf6f2;
+}
+
+.settings-permissions .pm-role__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.settings-permissions .pm-role__title strong {
+  font-size: 14px;
+}
+
+.settings-permissions .pm-role__desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-permissions .pm-role__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.settings-permissions .pm-role__meta em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--color-success);
+}
+
+/* Role summary */
+.settings-permissions .pm-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.settings-permissions .pm-summary__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.settings-permissions .pm-summary__icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-muted);
+  color: #6b4430;
+}
+
+.settings-permissions .pm-summary h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.settings-permissions .pm-summary__head p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-permissions .pm-summary__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.settings-permissions .pm-summary__stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.settings-permissions .pm-summary__stats span {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.settings-permissions .pm-summary__stats strong {
+  overflow: hidden;
+  font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-permissions .pm-summary__stats .pm-stat--on {
+  border-color: #cfe5d2;
+  background: #f1f8f2;
+}
+
+.settings-permissions .pm-stat--on span,
+.settings-permissions .pm-stat--on strong {
+  color: var(--color-success);
+}
+
+.settings-permissions .pm-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.settings-permissions .pm-note,
+.settings-permissions .pm-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-permissions .pm-warning {
+  border-color: #f1d7b8;
+  background: #fdf6ec;
+  color: #8a4b12;
+}
+
+.settings-permissions .pm-note svg,
+.settings-permissions .pm-warning svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Permission groups: masonry-style columns */
+.settings-permissions .pm-groups {
+  columns: 3;
+  column-gap: var(--space-4);
+}
+
+.settings-permissions .pm-group {
+  display: inline-block;
+  width: 100%;
+  margin-bottom: var(--space-4);
+  break-inside: avoid;
+}
+
+.settings-permissions .pm-group__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-permissions .pm-group__head h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 14px;
+}
+
+.settings-permissions .pm-group__head h3 svg {
+  color: #6b4430;
+}
+
+.settings-permissions .pm-count {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border: 1px solid #f1d7b8;
+  border-radius: 4px;
+  background: #fdf6ec;
+  font-size: 10px;
+  font-weight: 700;
+  color: #8a4b12;
+  white-space: nowrap;
+}
+
+.settings-permissions .pm-count--full {
+  border-color: #cfe5d2;
+  background: #f1f8f2;
+  color: var(--color-success);
+}
+
+.settings-permissions .pm-count--none {
+  border-color: var(--color-border);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.settings-permissions .pm-group ul {
+  margin: 0;
+  padding: var(--space-1) 0;
+  list-style: none;
+}
+
+.settings-permissions .pm-perm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+}
+
+.settings-permissions .pm-perm > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.settings-permissions .pm-perm__label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-permissions .pm-perm small {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.settings-permissions .pm-perm--off .pm-perm__label {
+  color: var(--color-text-muted);
+}
+
+.settings-permissions .pm-protected {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 5px;
+  border: 1px solid #f2cdc9;
+  border-radius: 4px;
+  background: #fdf1f0;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-danger);
+}
+
+.settings-permissions .pm-perm .toggle {
+  flex-shrink: 0;
+}
+
+.settings-permissions .pm-perm .toggle__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Sticky action bar */
+.settings-permissions .pm-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  box-shadow: 0 -4px 16px rgb(59 42 36 / 0.06);
+  backdrop-filter: blur(6px);
+}
+
+.settings-permissions .pm-actions__state {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-permissions .pm-actions__buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ---------- Responsive (keep last) ---------- */
+@media (max-width: 1500px) {
+  .settings-permissions .pm-top {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  }
+
+  .settings-permissions .pm-roles__list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-permissions .pm-groups {
+    columns: 2;
+  }
+}

@@ -1,0 +1,340 @@
+/* ==========================================================================
+   Settings → Features (design/stitch/settings-features.jpg)
+   Note + feature rows (left) | sticky status summary (right) | sticky
+   action bar. Scoped under .settings-features.
+   ========================================================================== */
+.settings-features {
+  --ft-side: clamp(320px, 26vw, 440px);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--ft-side);
+  gap: var(--space-4) var(--space-5);
+  align-items: start;
+  min-width: 0;
+}
+
+.settings-features .ft-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.settings-features .ft-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-features .ft-note svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.settings-features .ft-note strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--color-text);
+}
+
+/* Feature rows */
+.settings-features .ft-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-features .ft-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  transition: background 0.15s;
+}
+
+.settings-features .ft-row--off {
+  background: #faf9f7;
+}
+
+.settings-features .ft-row__icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-muted);
+  color: #6b4430;
+}
+
+.settings-features .ft-row--off .ft-row__icon {
+  color: var(--color-text-muted);
+}
+
+.settings-features .ft-row__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-features .ft-row__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-features .ft-row__title strong {
+  font-size: 14px;
+}
+
+.settings-features .ft-row--off .ft-row__title strong {
+  color: var(--color-text-muted);
+}
+
+.settings-features .ft-row__text p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-features .ft-row .toggle {
+  flex-shrink: 0;
+}
+
+/* Visible state comes from the badge; the label is for screen readers. */
+.settings-features .ft-row .toggle__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Summary */
+.settings-features .ft-side {
+  position: sticky;
+  top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.settings-features .ft-card {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-features .ft-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.settings-features .ft-card__head h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.settings-features .ft-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.settings-features .ft-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-3) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.settings-features .ft-stat strong {
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.settings-features .ft-stat span {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.settings-features .ft-stat--on {
+  border-color: #cfe5d2;
+  background: #f1f8f2;
+}
+
+.settings-features .ft-stat--on strong,
+.settings-features .ft-stat--on span {
+  color: var(--color-success);
+}
+
+.settings-features .ft-stat--off {
+  background: #ecebe8;
+}
+
+.settings-features .ft-meter {
+  margin-top: var(--space-3);
+}
+
+.settings-features .ft-meter__label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-features .ft-meter__label strong {
+  color: var(--color-text);
+}
+
+.settings-features .ft-meter__track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+}
+
+.settings-features .ft-meter__track span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-brand);
+  transition: width 0.2s;
+}
+
+.settings-features .ft-groups {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.settings-features .ft-groups h3,
+.settings-features .ft-card--info h3 {
+  margin: 0 0 var(--space-2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.settings-features .ft-groups ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-features .ft-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px 0;
+  font-size: 12px;
+}
+
+.settings-features .ft-group span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-features .ft-group em {
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.settings-features .ft-group__dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+}
+
+.settings-features .ft-group--on .ft-group__dot { background: var(--color-success); }
+.settings-features .ft-group--on em { color: var(--color-success); }
+.settings-features .ft-group--partial .ft-group__dot { background: var(--color-warning); }
+.settings-features .ft-group--partial em { color: var(--color-warning); }
+.settings-features .ft-group--off span:nth-child(2) { color: var(--color-text-muted); }
+
+.settings-features .ft-card--info h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+}
+
+.settings-features .ft-card--info h3 svg {
+  color: var(--color-success);
+}
+
+.settings-features .ft-card--info p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+/* Sticky action bar */
+.settings-features .ft-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  box-shadow: 0 -4px 16px rgb(59 42 36 / 0.06);
+  backdrop-filter: blur(6px);
+}
+
+.settings-features .ft-actions__state {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-features .ft-actions__buttons {
+  display: flex;
+  gap: var(--space-2);
+}

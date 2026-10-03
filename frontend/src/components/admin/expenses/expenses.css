@@ -1,0 +1,332 @@
+/* ==========================================================================
+   Admin → Expenses (design/stitch/admin-expenses.jpg)
+   Four summary cards, then one card holding toolbar, category chips, table
+   and footer. Page scrolls vertically. Scoped under .admin-expenses / .modal /
+   .drawer so rules win over global.css.
+   ========================================================================== */
+.admin-expenses {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+/* Summary */
+.admin-expenses .exp-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.admin-expenses .exp-kpi {
+  min-width: 0;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-expenses .exp-kpi__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.admin-expenses .exp-kpi__icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.admin-expenses .exp-kpi__value {
+  display: block;
+  margin-top: var(--space-2);
+  overflow: hidden;
+  font-size: 24px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-expenses .exp-kpi p {
+  margin: 4px 0 0;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Main card */
+.admin-expenses .exp-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-expenses .exp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+}
+
+.admin-expenses .exp-toolbar__search {
+  flex: 1 1 260px;
+}
+
+.admin-expenses .exp-toolbar__select {
+  width: 160px;
+}
+
+.admin-expenses .exp-toolbar__select .input {
+  height: 36px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-expenses .exp-chips {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.admin-expenses .exp-chips__label {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.admin-expenses .exp-chips .tabs {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* Table */
+.admin-expenses .exp-table .table-wrap {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.admin-expenses .exp-table tbody tr {
+  cursor: pointer;
+}
+
+.admin-expenses .exp-table .exp-row--selected td {
+  background: #fbf3ea;
+}
+
+.admin-expenses .exp-table .exp-row--selected td:first-child {
+  box-shadow: inset 3px 0 0 #c2410c;
+}
+
+.admin-expenses .exp-table .empty-state {
+  padding: var(--space-8) var(--space-4);
+}
+
+.admin-expenses .exp-date,
+.admin-expenses .exp-amount {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-expenses .exp-desc {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin-expenses .exp-desc strong,
+.admin-expenses .exp-desc span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-expenses .exp-desc strong {
+  font-size: 13px;
+}
+
+.admin-expenses .exp-desc span,
+.admin-expenses .exp-by {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.admin-expenses .exp-ref {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.admin-expenses .exp-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.admin-expenses .exp-actions .icon-btn {
+  width: 28px;
+  height: 28px;
+}
+
+.admin-expenses .exp-delete:hover {
+  color: var(--color-danger);
+}
+
+.admin-expenses .exp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.admin-expenses .exp-footer strong {
+  color: var(--color-text);
+}
+
+/* Tags (used in table, drawer) */
+.exp-cat {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid #d6dbe4;
+  border-radius: 4px;
+  background: #f1f4f8;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.exp-cat--supplies { border-color: #bfd4f2; background: #eaf2fd; color: #1d4ed8; }
+.exp-cat--ingredients { border-color: #f1dcaa; background: #fdf5e1; color: #a16207; }
+.exp-cat--utilities { border-color: #dccbf3; background: #f4eefd; color: #7e22ce; }
+.exp-cat--rent { border-color: #cbd5e1; background: #f1f5f9; color: #334155; }
+.exp-cat--equipment { border-color: #c7e0e5; background: #ebf6f8; color: #0e7490; }
+.exp-cat--maintenance { border-color: #f3cfb5; background: #fdeee3; color: #c2410c; }
+.exp-cat--transportation { border-color: #bfe3cc; background: #e9f7ee; color: #15803d; }
+.exp-cat--marketing { border-color: #f3c3cf; background: #fdecf0; color: #be123c; }
+
+.exp-pay {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Form modal */
+.modal .exp-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+}
+
+.modal .exp-form__wide {
+  grid-column: 1 / -1;
+}
+
+.modal .exp-form__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.modal .exp-form__notes {
+  min-height: 64px;
+  padding-top: 8px;
+  resize: vertical;
+}
+
+/* Detail drawer */
+.drawer .exp-detail__amount {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.drawer .exp-detail__amount span {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.drawer .exp-detail__amount strong {
+  font-size: 28px;
+}
+
+.drawer .exp-detail dl {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: var(--space-3) var(--space-3);
+  margin: var(--space-4) 0 0;
+  font-size: 13px;
+}
+
+.drawer .exp-detail dt {
+  color: var(--color-text-muted);
+}
+
+.drawer .exp-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.drawer .exp-detail__delete {
+  color: var(--color-danger);
+}
+
+/* ---------- Responsive (keep last) ---------- */
+@media (max-width: 1600px) {
+  .admin-expenses .exp-table th:nth-child(7),
+  .admin-expenses .exp-table td:nth-child(7) {
+    display: none;
+  }
+}
+
+@media (max-width: 1440px) {
+  .admin-expenses .exp-table th:nth-child(4),
+  .admin-expenses .exp-table td:nth-child(4) {
+    display: none;
+  }
+
+  .admin-expenses .exp-toolbar__select {
+    width: 140px;
+  }
+}

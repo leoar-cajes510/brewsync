@@ -1,0 +1,310 @@
+/* ==========================================================================
+   Settings → Staffing (design/stitch/settings-staffing.jpg)
+   Capacity / terminal / threshold cards with steppers (left) | sticky
+   usage summary (right) | sticky action bar. Scoped under .settings-staffing.
+   ========================================================================== */
+.settings-staffing {
+  --sf-side: clamp(340px, 32vw, 560px);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--sf-side);
+  gap: var(--space-4) var(--space-5);
+  align-items: start;
+  min-width: 0;
+}
+
+.settings-staffing .sf-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.settings-staffing .sf-card {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-staffing .sf-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: 0 var(--space-4);
+  padding: var(--space-4) 0 var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-staffing .sf-card__head--summary {
+  justify-content: space-between;
+}
+
+.settings-staffing .sf-card__icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-muted);
+  color: #6b4430;
+}
+
+.settings-staffing .sf-card__head h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.settings-staffing .sf-card__head p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* Numeric fields */
+.settings-staffing .sf-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin: 0 var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-staffing .sf-field:last-child {
+  border-bottom: none;
+}
+
+.settings-staffing .sf-field__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  max-width: 560px;
+}
+
+.settings-staffing .sf-field__text label {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settings-staffing .sf-field__text p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+
+.settings-staffing .sf-range {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 1px 6px;
+  border: 1px solid #cfe5d2;
+  border-radius: 4px;
+  background: #f1f8f2;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-success);
+}
+
+.settings-staffing .sf-stepper {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.settings-staffing .sf-stepper button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.settings-staffing .sf-stepper button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.settings-staffing .sf-stepper .input {
+  width: 72px;
+  height: 32px;
+  padding: 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.settings-staffing .sf-unit {
+  min-width: 52px;
+  padding-right: 4px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-staffing .sf-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-staffing .sf-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Summary */
+.settings-staffing .sf-side {
+  position: sticky;
+  top: var(--space-4);
+  min-width: 0;
+}
+
+.settings-staffing .sf-usage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.settings-staffing .sf-usage__item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.settings-staffing .sf-usage__top,
+.settings-staffing .sf-usage__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px var(--space-2);
+}
+
+.settings-staffing .sf-usage__top strong {
+  font-size: 13px;
+}
+
+.settings-staffing .sf-usage__top span {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-staffing .sf-usage__top b {
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.settings-staffing .sf-usage__foot {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.settings-staffing .sf-usage__foot span:last-child {
+  font-weight: 700;
+  color: var(--color-success);
+}
+
+.settings-staffing .sf-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+
+.settings-staffing .sf-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-brand);
+}
+
+.settings-staffing .sf-thresholds {
+  margin: 0 var(--space-4) var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.settings-staffing .sf-thresholds h3 {
+  margin: 0 0 var(--space-2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.settings-staffing .sf-thresholds div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 5px 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-staffing .sf-thresholds b {
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.settings-staffing .sf-summary__warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 var(--space-4) var(--space-4);
+  font-size: 11px;
+  color: #8a4b12;
+}
+
+/* Sticky action bar */
+.settings-staffing .sf-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  box-shadow: 0 -4px 16px rgb(59 42 36 / 0.06);
+  backdrop-filter: blur(6px);
+}
+
+.settings-staffing .sf-actions__state {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-staffing .sf-actions__buttons {
+  display: flex;
+  gap: var(--space-2);
+}

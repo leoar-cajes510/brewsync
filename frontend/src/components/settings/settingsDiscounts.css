@@ -1,0 +1,599 @@
+/* ==========================================================================
+   Settings → Discounts (design/stitch/settings-discounts.jpg)
+   Summary + discount list (left) | sticky POS preview (right) | sticky
+   action bar. Add/Edit form in a Drawer. Scoped under .settings-discounts,
+   form styles under .discount-form (the drawer renders in a portal).
+   ========================================================================== */
+.settings-discounts {
+  --ds-side: clamp(340px, 30vw, 500px);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--ds-side);
+  gap: var(--space-4) var(--space-5);
+  align-items: start;
+  min-width: 0;
+}
+
+.settings-discounts .ds-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.settings-discounts .ds-card {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Summary */
+.settings-discounts .ds-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+  padding: var(--space-3) var(--space-4);
+}
+
+.settings-discounts .ds-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-right: var(--space-5);
+  border-right: 1px solid var(--color-border);
+}
+
+.settings-discounts .ds-stat:nth-of-type(3) {
+  border-right: none;
+}
+
+.settings-discounts .ds-stat > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-discounts .ds-stat strong {
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.settings-discounts .ds-stat div span {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.settings-discounts .ds-stat__icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.settings-discounts .ds-stat__icon--on {
+  border-color: #cfe5d2;
+  background: #f1f8f2;
+  color: var(--color-success);
+}
+
+.settings-discounts .ds-add {
+  margin-left: auto;
+}
+
+/* List */
+.settings-discounts .ds-list__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.settings-discounts .ds-list__head h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.settings-discounts .ds-list__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-discounts .ds-list__tools .search-bar {
+  width: 220px;
+}
+
+.settings-discounts .ds-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-discounts .ds-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-discounts .ds-row:last-child {
+  border-bottom: none;
+}
+
+.settings-discounts .ds-row--off {
+  background: #faf9f7;
+}
+
+.settings-discounts .ds-row--off .ds-row__title strong {
+  color: var(--color-text-muted);
+}
+
+.settings-discounts .ds-row__num {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.settings-discounts .ds-row__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-discounts .ds-row__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-discounts .ds-row__title strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.settings-discounts .ds-chip {
+  padding: 1px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.settings-discounts .ds-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--space-3);
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-discounts .ds-row__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.settings-discounts .ds-row__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-discounts .ds-delete {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-danger);
+  cursor: pointer;
+}
+
+.settings-discounts .ds-delete:hover {
+  background: #fdf1f0;
+}
+
+.settings-discounts .toggle__label,
+.discount-form .toggle__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.settings-discounts .ds-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-discounts .ds-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Preview */
+.settings-discounts .ds-side {
+  position: sticky;
+  top: var(--space-4);
+  min-width: 0;
+}
+
+.settings-discounts .ds-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+}
+
+.settings-discounts .ds-card__head h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 15px;
+}
+
+.settings-discounts .ds-card__head h2 svg {
+  color: #6b4430;
+}
+
+.settings-discounts .ds-card__head p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-discounts .ds-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.settings-discounts .ds-preview__label {
+  margin-top: var(--space-1);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.settings-discounts .ds-preview__empty {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.settings-discounts .ds-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.settings-discounts .ds-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font: inherit;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-discounts .ds-option > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.settings-discounts .ds-option strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-discounts .ds-option em {
+  font-size: 11px;
+  font-style: normal;
+  opacity: 0.75;
+}
+
+.settings-discounts .ds-option b {
+  flex-shrink: 0;
+  font-size: 13px;
+}
+
+.settings-discounts .ds-option--active {
+  border-color: var(--color-brand);
+  background: var(--color-brand);
+  color: #fff;
+}
+
+.settings-discounts .ds-calc {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.settings-discounts .ds-calc > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.settings-discounts .ds-calc dt {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text-muted);
+}
+
+.settings-discounts .ds-calc dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.settings-discounts .ds-calc__discount dt,
+.settings-discounts .ds-calc__discount dd {
+  color: var(--color-success);
+}
+
+.settings-discounts .ds-calc__total {
+  margin-top: 4px;
+  padding-top: 8px !important;
+  border-top: 1px solid var(--color-border);
+}
+
+.settings-discounts .ds-calc__total dt,
+.settings-discounts .ds-calc__total dd {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.settings-discounts .ds-preview__hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.settings-discounts .ds-preview__hint svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Sticky action bar */
+.settings-discounts .ds-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  box-shadow: 0 -4px 16px rgb(59 42 36 / 0.06);
+  backdrop-filter: blur(6px);
+}
+
+.settings-discounts .ds-actions__state {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-discounts .ds-actions__buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ---------- Discount form (in Drawer) ---------- */
+.discount-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.discount-form .tabs {
+  width: 100%;
+}
+
+.discount-form .tabs__tab {
+  flex: 1;
+}
+
+.discount-form__affix {
+  position: relative;
+}
+
+.discount-form__affix .input {
+  width: 100%;
+}
+
+.discount-form__input--suffix {
+  padding-right: 32px;
+}
+
+.discount-form__input--prefix {
+  padding-left: 30px;
+}
+
+.discount-form__prefix,
+.discount-form__suffix {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.discount-form__prefix {
+  left: 12px;
+}
+
+.discount-form__suffix {
+  right: 12px;
+}
+
+.discount-form__tax {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.discount-form__taxopt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font: inherit;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.discount-form__taxopt strong {
+  font-size: 13px;
+}
+
+.discount-form__taxopt span {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.discount-form__taxopt--active {
+  border: 2px solid var(--color-brand);
+  padding: 7px 11px;
+  background: #faf6f2;
+}
+
+.discount-form__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.discount-form__status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.discount-form__status > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.discount-form__status strong {
+  font-size: 13px;
+}
+
+.discount-form__status span {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.discount-form__preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.discount-form__preview b {
+  color: var(--color-text);
+}
+
+/* ---------- Responsive (keep last) ---------- */
+@media (max-width: 1500px) {
+  .settings-discounts .ds-stat {
+    padding-right: var(--space-3);
+  }
+
+  .settings-discounts .ds-list__tools .search-bar {
+    width: 180px;
+  }
+}

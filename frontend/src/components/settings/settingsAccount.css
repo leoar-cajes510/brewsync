@@ -1,0 +1,428 @@
+/* ==========================================================================
+   Settings → Account (design/stitch/settings-account.jpg)
+   Profile / security / session cards (left) | sticky account status (right)
+   | sticky action bar. Scoped under .settings-account.
+   ========================================================================== */
+.settings-account {
+  --ac-side: clamp(320px, 28vw, 460px);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--ac-side);
+  gap: var(--space-4) var(--space-5);
+  align-items: start;
+  min-width: 0;
+}
+
+.settings-account .ac-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.settings-account .ac-card {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-account .ac-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+}
+
+.settings-account .ac-card__icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-muted);
+  color: #6b4430;
+}
+
+.settings-account .ac-card__head h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.settings-account .ac-card__head p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-account .ac-card__head--plain {
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Profile */
+.settings-account .ac-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 var(--space-4) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.settings-account .ac-avatar {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: var(--color-brand);
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.settings-account .ac-identity__text {
+  min-width: 0;
+}
+
+.settings-account .ac-identity__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-account .ac-identity__name strong {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.settings-account .ac-code {
+  padding: 1px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.settings-account .ac-identity p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-account .ac-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.settings-account .ac-locked-label {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.settings-account .ac-locked {
+  position: relative;
+}
+
+.settings-account .ac-locked .input {
+  width: 100%;
+  padding-right: 34px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.settings-account .ac-locked svg,
+.settings-account .ac-pw__eye {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+}
+
+/* Security */
+.settings-account .ac-passwords {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+}
+
+.settings-account .ac-pw {
+  position: relative;
+}
+
+.settings-account .ac-pw .input {
+  width: 100%;
+  padding-right: 38px;
+}
+
+.settings-account .ac-pw__eye {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  right: 5px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.settings-account .ac-pw__eye:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+}
+
+.settings-account .ac-rules {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-3) var(--space-4) 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.settings-account .ac-rules > span:first-child {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.settings-account .ac-rule {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface-muted);
+  font-weight: 600;
+}
+
+.settings-account .ac-rule--ok {
+  border-color: #cfe5d2;
+  background: #f1f8f2;
+  color: var(--color-success);
+}
+
+.settings-account .ac-rule--bad {
+  border-color: #f2cdc9;
+  background: #fdf1f0;
+  color: var(--color-danger);
+}
+
+.settings-account .ac-security__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.settings-account .ac-security__foot p {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.settings-account .ac-security__foot p svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.settings-account .ac-security__foot .btn {
+  flex-shrink: 0;
+}
+
+/* Session */
+.settings-account .ac-session {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0 var(--space-4);
+}
+
+.settings-account .ac-session > div {
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.settings-account .ac-session dt {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.settings-account .ac-session dd {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settings-account .ac-online {
+  color: var(--color-success);
+}
+
+.settings-account .ac-offline {
+  color: var(--color-warning);
+}
+
+.settings-account .ac-logout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid #f2cdc9;
+  border-radius: var(--radius-md);
+  background: #fdf8f7;
+}
+
+.settings-account .ac-logout > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.settings-account .ac-logout strong {
+  font-size: 13px;
+}
+
+.settings-account .ac-logout span {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-account .btn.ac-logout__btn {
+  flex-shrink: 0;
+  color: var(--color-danger);
+}
+
+/* Status */
+.settings-account .ac-side {
+  position: sticky;
+  top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.settings-account .ac-status {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+}
+
+.settings-account .ac-status > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-account .ac-status > div:last-child {
+  border-bottom: none;
+}
+
+.settings-account .ac-status dt {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.settings-account .ac-status dd {
+  margin: 0;
+}
+
+.settings-account .ac-status__hint {
+  margin: 0 var(--space-4) var(--space-4);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.settings-account .ac-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-account .ac-note svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--color-success);
+}
+
+/* Sticky action bar */
+.settings-account .ac-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  box-shadow: 0 -4px 16px rgb(59 42 36 / 0.06);
+  backdrop-filter: blur(6px);
+}
+
+.settings-account .ac-actions__state {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-account .ac-actions__buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ---------- Responsive (keep last) ---------- */
+@media (max-width: 1500px) {
+  .settings-account .ac-passwords {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-account .ac-session {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-account .ac-security__foot {
+    flex-wrap: wrap;
+  }
+}

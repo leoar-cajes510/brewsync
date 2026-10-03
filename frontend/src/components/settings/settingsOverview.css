@@ -1,0 +1,133 @@
+/* ==========================================================================
+   Settings → Overview (design/stitch/settings-overview.jpg)
+   One grid of 12 neutral category cards; accents only on icons/indicators.
+   Scoped under .settings-overview so rules win over global.css.
+   ========================================================================== */
+.settings-overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.settings-overview__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.settings-overview__head h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.settings-overview__head span {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.settings-overview__head b {
+  font-weight: 600;
+  color: #b45309;
+}
+
+.settings-overview .settings-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-overview .settings-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 190px;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.settings-overview .settings-card:hover {
+  border-color: #d9c2ad;
+  box-shadow: 0 6px 18px rgb(59 42 36 / 0.08);
+  transform: translateY(-1px);
+}
+
+.settings-overview .settings-card:focus-visible {
+  outline: 2px solid #b8844f;
+  outline-offset: 2px;
+}
+
+.settings-overview .settings-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.settings-overview .settings-card__icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+}
+
+/* Restrained accents: soft tint + muted ink. */
+.settings-overview .settings-card__icon--brown { background: #f4ebe3; color: #6b4430; }
+.settings-overview .settings-card__icon--violet { background: #f1edf8; color: #6b4fa0; }
+.settings-overview .settings-card__icon--teal { background: #e9f3f2; color: #2f6f6a; }
+.settings-overview .settings-card__icon--amber { background: #fbf1e3; color: #a0611c; }
+.settings-overview .settings-card__icon--red { background: #f9ecea; color: #a8423a; }
+.settings-overview .settings-card__icon--green { background: #ebf4ee; color: #3b7a52; }
+.settings-overview .settings-card__icon--slate { background: #eef0f3; color: #475467; }
+.settings-overview .settings-card__icon--rose { background: #f9ecf1; color: #9d3d63; }
+.settings-overview .settings-card__icon--blue { background: #eaf0f8; color: #3b5b8c; }
+
+.settings-overview .settings-card__name {
+  margin-top: var(--space-3);
+  font-size: 15px;
+}
+
+.settings-overview .settings-card__desc {
+  flex: 1;
+  margin: 4px 0 var(--space-4);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.settings-overview .settings-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.settings-overview .settings-card:hover .settings-card__foot {
+  color: var(--color-text);
+}
+
+.settings-overview .settings-card .badge {
+  white-space: nowrap;
+}
+
+/* ---------- Responsive (keep last) ---------- */
+@media (max-height: 800px) {
+  .settings-overview .settings-card {
+    min-height: 160px;
+  }
+}

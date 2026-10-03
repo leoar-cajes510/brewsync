@@ -1,0 +1,603 @@
+/* ==========================================================================
+   Admin → Choices (design/stitch/admin-choices.jpg)
+   KPIs, filter toolbar, stacked choice-group cards. Add/Edit opens in the
+   shared Drawer (right edge). Scoped under .admin-choices / .drawer so rules
+   win over global.css (imported last).
+   ========================================================================== */
+.admin-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+/* KPI cards */
+.admin-choices .choice-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.admin-choices .choice-kpi {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-choices .choice-kpi > div {
+  min-width: 0;
+}
+
+.admin-choices .choice-kpi__label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.admin-choices .choice-kpi__value {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: 26px;
+  line-height: 1.2;
+  color: var(--color-text);
+}
+
+.admin-choices .choice-kpi p {
+  margin: 2px 0 0;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.admin-choices .choice-kpi__icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.admin-choices .choice-kpi--warning .choice-kpi__value {
+  color: #c2410c;
+}
+
+.admin-choices .choice-kpi--warning .choice-kpi__icon {
+  background: #fdecd8;
+  color: #c2410c;
+}
+
+.admin-choices .choice-kpi--accent .choice-kpi__value {
+  color: var(--color-success);
+}
+
+.admin-choices .choice-kpi--accent .choice-kpi__icon {
+  background: #e6f2ea;
+  color: var(--color-success);
+}
+
+/* Toolbar */
+.admin-choices .choice-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.admin-choices .choice-toolbar__search {
+  flex: 1 1 200px;
+  max-width: 300px;
+}
+
+.admin-choices .choice-toolbar__select {
+  width: 190px;
+}
+
+.admin-choices .choice-toolbar__select--status {
+  width: 150px;
+}
+
+.admin-choices .choice-toolbar__select .input {
+  height: 36px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-choices .choice-toolbar__actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+/* Empty */
+.admin-choices .choice-empty {
+  padding: var(--space-8) var(--space-4);
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.admin-choices .choice-empty .empty-state {
+  border: none;
+  background: none;
+}
+
+/* Group cards */
+.admin-choices .choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-choices .choice-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-choices .choice-card--selected {
+  border-color: #d9a066;
+  background: #fbf3ea;
+  box-shadow: 0 0 0 1px #d9a066, var(--shadow-sm);
+}
+
+.admin-choices .choice-card--inactive .choice-card__body {
+  opacity: 0.6;
+}
+
+.admin-choices .choice-card__grip {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--color-text-muted);
+}
+
+.admin-choices .choice-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-choices .choice-card__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px var(--space-2);
+}
+
+.admin-choices .choice-card__title strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-choices .choice-tag {
+  padding: 2px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface-muted);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.admin-choices .choice-tag--single {
+  border-color: #efcfae;
+  background: #fbeadb;
+  color: #9a4d17;
+}
+
+.admin-choices .choice-tag--multi {
+  border-color: #cfd8e8;
+  background: #eef2f8;
+  color: #3b5378;
+}
+
+.admin-choices .choice-tag--required {
+  border-color: #f3d38c;
+  background: #fff6de;
+  color: #a16207;
+}
+
+.admin-choices .choice-card__desc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.admin-choices .choice-card__display {
+  font-style: italic;
+}
+
+.admin-choices .choice-card__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.admin-choices .choice-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.admin-choices .choice-chip em {
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.admin-choices .choice-chip--default {
+  border-color: var(--color-text);
+  font-weight: 600;
+}
+
+.admin-choices .choice-chip--inactive {
+  border-style: dashed;
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.admin-choices .choice-chip__price {
+  font-weight: 600;
+  color: #b45309;
+}
+
+.admin-choices .choice-card__side {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.admin-choices .choice-card__count {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.admin-choices .choice-card__count strong {
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.admin-choices .choice-card__count span {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.admin-choices .choice-card__actions {
+  display: flex;
+  gap: 2px;
+}
+
+.admin-choices .choice-card__power--off {
+  color: var(--color-success);
+}
+
+.admin-choices .choice-card__delete:hover {
+  color: var(--color-danger);
+}
+
+/* ---------- Drawer form (portalled to body) ---------- */
+.drawer .choice-form__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.drawer .choice-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.drawer .choice-form > * {
+  flex-shrink: 0;
+}
+
+.drawer .choice-form__intro,
+.drawer .choice-form__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.drawer .choice-form__hint {
+  margin-top: calc(var(--space-2) * -1);
+}
+
+.drawer .choice-form__rules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.drawer .choice-form__rules .tabs {
+  display: flex;
+}
+
+.drawer .choice-form__rules .tabs__tab {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.drawer .choice-form__steppers {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.drawer .choice-stepper {
+  flex: 1;
+  justify-content: space-between;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.drawer .choice-stepper--disabled {
+  background: var(--color-surface-muted);
+  opacity: 0.7;
+}
+
+.drawer .choice-stepper__label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.drawer .choice-stepper__control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.drawer .choice-stepper__control strong {
+  min-width: 18px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.drawer .choice-stepper__control button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.drawer .choice-stepper__control button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.drawer .choice-form__required {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.drawer .choice-form__required strong {
+  display: block;
+  font-size: 13px;
+}
+
+.drawer .choice-form__required span {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.drawer .choice-form__options-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.drawer .choice-form__options-head strong {
+  font-size: 13px;
+}
+
+.drawer .choice-form__options-head span {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.drawer .choice-form__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.drawer .choice-option-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.drawer .choice-option-row--inactive {
+  background: var(--color-surface-muted);
+}
+
+.drawer .choice-option-row__main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.drawer .choice-option-row__grip {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.drawer .choice-option-row__name {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+}
+
+.drawer .choice-option-row__price {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  width: 104px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.drawer .choice-option-row__price input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: #b45309;
+  text-align: right;
+}
+
+.drawer .choice-option-row__remove:hover:not(:disabled) {
+  color: var(--color-danger);
+}
+
+.drawer .choice-option-row__remove:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.drawer .choice-option-row__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 22px;
+}
+
+.drawer .choice-option-row__default {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.drawer .choice-option-row .toggle__label {
+  font-size: 12px;
+}
+
+.drawer .choice-form__add-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.drawer .choice-form__add-option:hover {
+  background: var(--color-surface-muted);
+}
+
+.drawer .choice-form__footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.drawer .choice-form__footer-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.drawer .choice-form__footer-row .btn {
+  flex: 1;
+}
+
+.drawer .choice-form__deactivate {
+  color: var(--color-danger);
+}
+
+/* ---------- Responsive (keep last) ---------- */
+@media (max-width: 1500px) {
+  .admin-choices .choice-card__count span {
+    display: none;
+  }
+}
+
+@media (max-width: 1440px) {
+  .admin-choices .choice-toolbar__select {
+    width: 170px;
+  }
+
+  .admin-choices .choice-toolbar__select--status {
+    width: 140px;
+  }
+}

@@ -1,0 +1,22 @@
+# Environment
+.env
+
+# Frontend
+node_modules/
+frontend/dist/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+backend/.venv/
+
+.vercel
+.env*
+!.env.example
+
+# Local tooling / generated
+.claude/
+*.log
+frontend/tsconfig.tsbuildinfo
+.vercelignore.local

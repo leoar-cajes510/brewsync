@@ -1,0 +1,778 @@
+/* ==========================================================================
+   Admin → Ingredients (design/stitch/admin-ingredients.jpg)
+   KPIs across the top; ingredient table card | sticky recipe panel below.
+   Page scrolls vertically; the recipe panel sticks and scrolls internally.
+   Scoped under .admin-ingredients / .modal so rules win over global.css.
+   ========================================================================== */
+.admin-ingredients {
+  --ing-panel-width: clamp(360px, 27vw, 500px);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+/* KPIs */
+.admin-ingredients .ing-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.admin-ingredients .ing-kpi {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-ingredients .ing-kpi > div {
+  min-width: 0;
+}
+
+.admin-ingredients .ing-kpi__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.admin-ingredients .ing-kpi__label em {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.admin-ingredients .ing-kpi__value {
+  display: block;
+  margin-top: var(--space-1);
+  overflow: hidden;
+  font-size: 26px;
+  line-height: 1.2;
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-ingredients .ing-kpi p {
+  margin: 2px 0 0;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-ingredients .ing-kpi__icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.admin-ingredients .ing-kpi--warning .ing-kpi__value,
+.admin-ingredients .ing-kpi--warning .ing-kpi__icon {
+  color: #c2410c;
+}
+
+.admin-ingredients .ing-kpi--warning .ing-kpi__icon,
+.admin-ingredients .ing-kpi--warning em {
+  background: #fdecd8;
+  color: #c2410c;
+}
+
+.admin-ingredients .ing-kpi--danger .ing-kpi__value {
+  color: var(--color-danger);
+}
+
+.admin-ingredients .ing-kpi--danger .ing-kpi__icon,
+.admin-ingredients .ing-kpi--danger em {
+  background: #fbe4e2;
+  color: var(--color-danger);
+}
+
+.admin-ingredients .ing-kpi--success .ing-kpi__icon {
+  background: #e6f2ea;
+  color: var(--color-success);
+}
+
+/* Layout */
+.admin-ingredients .ing-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--ing-panel-width);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.admin-ingredients .ing-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-ingredients .ing-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+}
+
+.admin-ingredients .ing-toolbar__search {
+  flex: 1 1 220px;
+  max-width: 360px;
+}
+
+.admin-ingredients .ing-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.admin-ingredients .ing-toolbar__status {
+  width: 150px;
+}
+
+.admin-ingredients .ing-toolbar__status .input {
+  height: 36px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-ingredients .ing-chips {
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.admin-ingredients .ing-chips .tabs {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* Table */
+.admin-ingredients .ing-table .table-wrap {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.admin-ingredients .ing-table tbody tr {
+  cursor: pointer;
+}
+
+.admin-ingredients .ing-table .ing-row--selected td {
+  background: #fbf3ea;
+}
+
+.admin-ingredients .ing-table .ing-row--selected td:first-child {
+  box-shadow: inset 3px 0 0 #c2410c;
+}
+
+.admin-ingredients .ing-table .ing-row--out td {
+  background: #fdf1f0;
+}
+
+.admin-ingredients .ing-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.admin-ingredients .ing-name__icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.admin-ingredients .ing-name__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin-ingredients .ing-name__text strong,
+.admin-ingredients .ing-name__text span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-ingredients .ing-name__text strong {
+  font-size: 13px;
+}
+
+.admin-ingredients .ing-name__text span,
+.admin-ingredients .ing-muted {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.admin-ingredients .ing-strong {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-ingredients .ing-qty__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.admin-ingredients .ing-qty__row span {
+  color: var(--color-text-muted);
+}
+
+.admin-ingredients .ing-qty__track {
+  display: block;
+  height: 4px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+}
+
+.admin-ingredients .ing-qty__bar {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-success);
+}
+
+.admin-ingredients .ing-qty--low strong {
+  color: #c2410c;
+}
+
+.admin-ingredients .ing-qty--low .ing-qty__bar {
+  background: #d9822b;
+}
+
+.admin-ingredients .ing-qty--out strong {
+  color: var(--color-danger);
+}
+
+.admin-ingredients .ing-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+}
+
+.admin-ingredients .ing-act {
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.admin-ingredients .ing-act:hover {
+  background: var(--color-surface-muted);
+}
+
+.admin-ingredients .ing-act--low {
+  border-color: #d9822b;
+  background: #d9822b;
+  color: #fff;
+}
+
+.admin-ingredients .ing-act--out {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.admin-ingredients .ing-act--low:hover,
+.admin-ingredients .ing-act--out:hover {
+  filter: brightness(0.92);
+  background-color: inherit;
+}
+
+.admin-ingredients .ing-act--low:hover {
+  background: #d9822b;
+}
+
+.admin-ingredients .ing-act--out:hover {
+  background: var(--color-danger);
+}
+
+.admin-ingredients .ing-actions .icon-btn {
+  width: 26px;
+  height: 26px;
+}
+
+.admin-ingredients .ing-delete:hover {
+  color: var(--color-danger);
+}
+
+.admin-ingredients .ing-table .empty-state {
+  padding: var(--space-8) var(--space-4);
+}
+
+.admin-ingredients .ing-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* Recipe panel */
+.admin-ingredients .recipe {
+  position: sticky;
+  top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-height: calc(100vh - var(--space-8));
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-ingredients .recipe__header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-ingredients .recipe__eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.admin-ingredients .recipe__header h2 {
+  margin: 2px 0 0;
+  font-size: 15px;
+}
+
+.admin-ingredients .recipe__header .tabs__tab {
+  padding: 4px 10px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.admin-ingredients .recipe__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+
+.admin-ingredients .recipe__body > * {
+  flex-shrink: 0;
+}
+
+.admin-ingredients .recipe__body .empty-state {
+  border: none;
+  background: none;
+}
+
+.admin-ingredients .recipe__hint {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.admin-ingredients .recipe__product {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.admin-ingredients .recipe__product > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--space-2);
+  min-width: 0;
+}
+
+.admin-ingredients .recipe__product strong {
+  font-size: 14px;
+}
+
+.admin-ingredients .recipe__product em {
+  flex-basis: 100%;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+  color: #b45309;
+}
+
+.admin-ingredients .recipe__cost {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.admin-ingredients .recipe__cost span {
+  flex-basis: 100%;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.admin-ingredients .recipe__cost strong {
+  font-size: 22px;
+}
+
+.admin-ingredients .recipe__cost em {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #e6f2ea;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--color-success);
+}
+
+.admin-ingredients .recipe__cost .recipe__margin--neg {
+  background: #fbe4e2;
+  color: var(--color-danger);
+}
+
+.admin-ingredients .recipe__head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-ingredients .recipe__unsaved {
+  color: #c2410c;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.admin-ingredients .recipe__lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.admin-ingredients .recipe-line {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.admin-ingredients .recipe-line--error {
+  border-color: var(--color-danger);
+}
+
+.admin-ingredients .recipe-line__main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.admin-ingredients .recipe-line__ingredient {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  font-size: 12px;
+}
+
+.admin-ingredients .recipe-line__qty {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  width: 96px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.admin-ingredients .recipe-line__qty input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-text);
+  text-align: right;
+}
+
+.admin-ingredients .recipe-line__remove:hover {
+  color: var(--color-danger);
+}
+
+.admin-ingredients .recipe-line__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 0 2px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.admin-ingredients .recipe-line__meta strong {
+  color: var(--color-text);
+}
+
+.admin-ingredients .recipe__add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.admin-ingredients .recipe__add:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.admin-ingredients .recipe__logic {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  font-size: 12px;
+}
+
+.admin-ingredients .recipe__logic p {
+  margin: 0;
+}
+
+.admin-ingredients .recipe__logic-title,
+.admin-ingredients .recipe__logic-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-ingredients .recipe__logic-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin-ingredients .recipe__logic-note {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.admin-ingredients .recipe__footer {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.admin-ingredients .recipe__footer .btn--primary {
+  flex: 1;
+}
+
+.admin-ingredients .recipe-log__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 13px;
+}
+
+.admin-ingredients .recipe-log ul {
+  display: flex;
+  flex-direction: column;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-ingredients .recipe-log li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+}
+
+.admin-ingredients .recipe-log li > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin-ingredients .recipe-log li span,
+.admin-ingredients .recipe-log li em {
+  font-size: 11px;
+  font-style: normal;
+  color: var(--color-text-muted);
+}
+
+.admin-ingredients .recipe-log__nums {
+  flex-shrink: 0;
+  align-items: flex-end;
+}
+
+.admin-ingredients .recipe-log .pos {
+  color: var(--color-success);
+}
+
+.admin-ingredients .recipe-log .neg {
+  color: var(--color-danger);
+}
+
+/* ---------- Modals (portalled to body) ---------- */
+.modal .ing-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+}
+
+.modal .ing-form__wide {
+  grid-column: 1 / -1;
+}
+
+.modal .ing-form__notes {
+  min-height: 64px;
+  padding-top: 8px;
+  resize: vertical;
+}
+
+.modal .ing-form__readonly {
+  margin: 0;
+  padding: 9px 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.modal .ing-form__readonly em {
+  display: block;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.modal .ing-stock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.modal .ing-stock > .tabs {
+  display: flex;
+}
+
+.modal .ing-stock > .tabs .tabs__tab {
+  flex: 1;
+}
+
+.modal .ing-stock__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+/* ---------- Responsive (keep last) ---------- */
+@media (max-width: 1600px) {
+  .admin-ingredients .ing-table th:nth-child(7),
+  .admin-ingredients .ing-table td:nth-child(7) {
+    display: none;
+  }
+}
+
+@media (max-width: 1500px) {
+  .admin-ingredients .ing-table th:nth-child(2),
+  .admin-ingredients .ing-table td:nth-child(2),
+  .admin-ingredients .ing-table th:nth-child(5),
+  .admin-ingredients .ing-table td:nth-child(5) {
+    display: none;
+  }
+}
+
+/* Deactivated ingredient (ING-14). */
+.ing-row--inactive td {
+  opacity: 0.6;
+}
