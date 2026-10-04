@@ -1,4 +1,5 @@
 import { can, useAuth } from '../../stores/authStore';
+import { useBrandingSettings } from '../../stores/brandingSettingsStore';
 import { useTerms } from '../../stores/terminologySettingsStore';
 import type { MeDto } from '../../types/api';
 import { NavLink } from 'react-router-dom';
@@ -37,6 +38,7 @@ const sections: { label: string; links: SidebarLink[] }[] = [
 export default function MainSidebar() {
   const { user } = useAuth();
   const { terms } = useTerms();
+  const { logo } = useBrandingSettings().settings;
   // Settings → Terminology display words (TRM-02); routes and system keys never change.
   const custom: Record<string, string> = { '/orders': terms('order'), '/receipts': terms('receipt') };
   const visible = sections
@@ -46,7 +48,7 @@ export default function MainSidebar() {
     <aside className="main-sidebar" aria-label="Main navigation">
       <div className="main-sidebar__brand">
         <span className="main-sidebar__logo">
-          <Coffee size={20} strokeWidth={2.2} />
+          {logo ? <img src={logo.dataUrl} alt="Business logo" /> : <Coffee size={20} strokeWidth={2.2} />}
         </span>
         <span className="main-sidebar__name">BrewSync</span>
       </div>

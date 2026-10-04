@@ -33,23 +33,49 @@ const SEMANTIC = [
 const sameBranding = (a: BrandingSettings, b: BrandingSettings) =>
   a.primary === b.primary && a.accent === b.accent && a.background === b.background && a.logo?.dataUrl === b.logo?.dataUrl;
 
+const LOGO_MAX_SIDE = 256;
+
+const loadImage = (src: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('That file is not a readable image.'));
+    img.src = src;
+  });
+
+// Raster logos are downscaled to ~256px on the longest side (aspect ratio kept) and re-encoded:
+// JPEG stays JPEG; PNG/WEBP become WEBP (alpha kept; browsers without WEBP encoding fall back to PNG).
+// SVG is stored as-is, never rasterized.
 function readLogo(file: File): Promise<BrandLogo> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('Could not read that file. Try another image.'));
-    reader.onload = () => {
-      const dataUrl = String(reader.result);
-      const img = new Image();
-      img.onload = () => resolve({ dataUrl, fileName: file.name, width: img.naturalWidth, height: img.naturalHeight });
-      img.onerror = () => reject(new Error('That file is not a readable image.'));
-      img.src = dataUrl;
+    reader.onload = async () => {
+      try {
+        const source = String(reader.result);
+        const img = await loadImage(source);
+        const { naturalWidth: w, naturalHeight: h } = img;
+        if (file.type === 'image/svg+xml') return resolve({ dataUrl: source, fileName: file.name, width: w, height: h });
+        const scale = Math.min(1, LOGO_MAX_SIDE / Math.max(w, h));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(w * scale));
+        canvas.height = Math.max(1, Math.round(h * scale));
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve({ dataUrl: source, fileName: file.name, width: w, height: h });
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = file.type === 'image/jpeg' ? canvas.toDataURL('image/jpeg', 0.85) : canvas.toDataURL('image/webp', 0.9);
+        resolve({ dataUrl, fileName: file.name, width: canvas.width, height: canvas.height });
+      } catch (e) {
+        reject(e);
+      }
     };
     reader.readAsDataURL(file);
   });
 }
 
 // Visual brand identity only. Edits apply to the live preview immediately and
-// are saved to the `branding` settings section (the logo previews for this session only, Q-ARCH-2).
+// are saved to the `branding` settings section, including the optimized logo.
 export default function SettingsBrandingPage() {
   const { settings: saved, savedAt } = useBrandingSettings();
   const { settings: business } = useBusinessSettings();
@@ -100,7 +126,7 @@ export default function SettingsBrandingPage() {
   const save = async () => {
     try {
       await saveBrandingSettings(form);
-      setFeedback(form.logo ? 'Branding saved (the logo previews for this session only — logo storage is not decided yet)' : 'Branding saved');
+      setFeedback('Branding saved');
     } catch (e) {
       setFeedback(errorMessage(e));
     }

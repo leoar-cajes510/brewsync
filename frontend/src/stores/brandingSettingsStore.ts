@@ -1,11 +1,11 @@
 import { createSectionStore } from './sectionStore';
 
 // Branding (Settings → Branding), stored in the `branding` settings section. Defaults are
-// BrewSync's neutral system theme until the business saves its own colors. Logo storage is an
-// open decision (Q-ARCH-2), so a chosen logo previews for this session only.
+// BrewSync's neutral system theme until the business saves its own colors. The logo is kept in the
+// same section as an optimized data URL (raster images downscaled client-side; SVG kept as-is).
 
 export interface BrandLogo {
-  /** Local preview (data URL) for this session only. */
+  /** Optimized image as a data URL, persisted with the branding section. */
   dataUrl: string;
   fileName: string;
   width: number;
@@ -26,22 +26,24 @@ export const BRANDING_DEFAULTS: BrandingSettings = {
   background: '#F5F3EF',
 };
 
-/** Logo files are not uploaded (storage is an open decision, Q-ARCH-2): kept for this session only. */
-let sessionLogo: BrandingSettings['logo'] = null;
+type Data = Record<string, unknown>;
 
-const store = createSectionStore<BrandingSettings>(
-  'branding',
-  BRANDING_DEFAULTS,
-  (d) => ({ ...BRANDING_DEFAULTS, ...(d as Partial<BrandingSettings>), logo: sessionLogo }),
-  (s, current) => ({ ...(current ?? {}), ...s, logo: null }),
-);
+const isLogo = (v: unknown): v is BrandLogo =>
+  !!v && typeof v === 'object' && typeof (v as BrandLogo).dataUrl === 'string' && (v as BrandLogo).dataUrl.startsWith('data:image/');
 
-export const useBrandingSettings = store.use;
-export const saveBrandingSettings = (settings: BrandingSettings) => {
-  sessionLogo = settings.logo;
-  return store.save(settings);
+export const brandingFromData = (d: Data): BrandingSettings => {
+  const logo = isLogo(d.logo) ? { dataUrl: d.logo.dataUrl, fileName: String(d.logo.fileName ?? ''), width: Number(d.logo.width) || 0, height: Number(d.logo.height) || 0 } : null;
+  return { ...BRANDING_DEFAULTS, ...(d as Partial<BrandingSettings>), logo };
 };
 
+export const brandingToData = (s: BrandingSettings, current: Data | null): Data => ({ ...(current ?? {}), ...s, logo: s.logo ?? null });
+
+const store = createSectionStore<BrandingSettings>('branding', BRANDING_DEFAULTS, brandingFromData, brandingToData);
+
+export const useBrandingSettings = store.use;
+export const loadBrandingSettings = store.load;
+export const getBrandingState = store.get;
+export const saveBrandingSettings = (settings: BrandingSettings) => store.save(settings);
 
 /* ------------------------------ Color helpers ----------------------------- */
 
