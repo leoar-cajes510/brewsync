@@ -21,10 +21,10 @@ const FEATURES: { key: string; label: string }[] = [
   { key: 'refunds', label: 'Refunds' },
   { key: 'expenses', label: 'Expenses' },
   { key: 'analytics', label: 'Analytics' },
-  { key: 'lowStockAlerts', label: 'Low-Stock Alerts' },
-  { key: 'orderAlerts', label: 'Order Alerts' },
-  { key: 'liveUpdates', label: 'Live Updates' },
-  { key: 'soundEffects', label: 'Sound Effects' },
+  { key: 'lowStockAlerts', label: 'Low-Stock Alerts (not active yet)' },
+  { key: 'orderAlerts', label: 'Order Alerts (not active yet)' },
+  { key: 'liveUpdates', label: 'Live Updates (not active yet)' },
+  { key: 'soundEffects', label: 'Sound Effects (not active yet)' },
 ];
 const METHODS: { key: string; label: string }[] = [
   { key: 'cash', label: 'Cash' },

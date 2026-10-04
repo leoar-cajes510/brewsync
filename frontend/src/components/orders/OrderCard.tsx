@@ -3,8 +3,7 @@ import Button from '../ui/Button';
 import type { Order } from '../../types/order';
 import { formatPeso } from '../../utils/currency';
 import { formatTime, minutesSince, orderTotals, orderTypeLabel } from '../../utils/orderDisplay';
-
-const SLOW_PREP_MINUTES = 10;
+import { useStaffingSettings } from '../../stores/staffingSettingsStore';
 
 interface OrderCardProps {
   order: Order;
@@ -15,6 +14,9 @@ interface OrderCardProps {
 }
 
 function TimeMeta({ order, now }: { order: Order; now: Date }) {
+  // Settings → Staffing → Order Waiting Threshold: orders waiting longer than this are highlighted.
+  const { settings: staffing } = useStaffingSettings();
+  const threshold = staffing.orderWaitingMinutes;
   if (order.status === 'ready' && order.readyAt) {
     return (
       <span className="order-card__time order-card__time--ready">
@@ -24,7 +26,7 @@ function TimeMeta({ order, now }: { order: Order; now: Date }) {
   }
   if (order.status === 'preparing') {
     const elapsed = minutesSince(order.startedAt ?? order.placedAt, now);
-    const slow = elapsed >= SLOW_PREP_MINUTES;
+    const slow = elapsed >= threshold;
     return (
       <span className="order-card__time-stack">
         <span className={`order-card__time ${slow ? 'order-card__time--late' : ''}`}>
@@ -35,9 +37,9 @@ function TimeMeta({ order, now }: { order: Order; now: Date }) {
     );
   }
   const waited = minutesSince(order.placedAt, now);
-  if (waited < 1) return <span className="order-card__time order-card__time--late">Just now</span>;
+  if (waited < 1) return <span className="order-card__time">Just now</span>;
   return (
-    <span className="order-card__time">
+    <span className={`order-card__time ${waited >= threshold ? 'order-card__time--late' : ''}`}>
       <Clock size={13} /> {waited}m ago
     </span>
   );

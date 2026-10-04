@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -20,12 +21,17 @@ class Settings(BaseSettings):
 
     app_name: str = "BrewSync API"
     app_version: str = "0.1.0"
+    # development | test | production. Only "production" may use a non-local database (see guard below).
     environment: str = "development"
+    # Explicit developer override for a remote database outside production (BREWSYNC_ALLOW_REMOTE_DB=1).
+    brewsync_allow_remote_db: bool = False
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
     # PostgreSQL (Supabase or self-hosted — hosting is OPEN Q-ARCH-1).
     # e.g. postgresql+psycopg://user:password@host:5432/postgres
     database_url: str | None = None
+    # Integration tests only (DROP/CREATE of TEST_DB_SCHEMA); must be a local PostgreSQL.
+    test_database_url: str | None = None
     # Dedicated schema so BrewSync never touches other tables in the same database.
     db_schema: str = "brewsync"
 
@@ -51,3 +57,37 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+LOCAL_DB_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", ""})
+
+
+class RemoteDatabaseRefused(RuntimeError):
+    """A non-local database was configured outside production without an explicit opt-in."""
+
+
+def database_target(url: str) -> tuple[str, str]:
+    """(host, database) of a SQLAlchemy URL — never the user or password."""
+    from sqlalchemy.engine import make_url
+    parsed = make_url(url)
+    return (parsed.host or "").lower(), parsed.database or ""
+
+
+def is_local_database(url: str) -> bool:
+    return database_target(url)[0] in LOCAL_DB_HOSTS
+
+
+def is_production(settings: "Settings") -> bool:
+    """ENVIRONMENT=production, or a Vercel Production deployment (VERCEL_ENV is set by Vercel itself)."""
+    return settings.environment.strip().lower() == "production" or os.environ.get("VERCEL_ENV") == "production"
+
+
+def ensure_database_allowed(url: str, settings: "Settings") -> None:
+    """Local development, tests and tooling only talk to a local PostgreSQL. A remote host (e.g. the
+    Supabase Production pooler) is allowed only in production or with BREWSYNC_ALLOW_REMOTE_DB=1."""
+    if is_local_database(url) or is_production(settings) or settings.brewsync_allow_remote_db:
+        return
+    host, database = database_target(url)
+    raise RemoteDatabaseRefused(
+        f"Refusing remote database {host}/{database} with ENVIRONMENT={settings.environment!r}. "
+        "Use a local DATABASE_URL, run with ENVIRONMENT=production, or set BREWSYNC_ALLOW_REMOTE_DB=1 deliberately.")

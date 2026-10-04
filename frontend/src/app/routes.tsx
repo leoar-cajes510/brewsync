@@ -25,7 +25,7 @@ const page = (load: () => Promise<{ default: ComponentType }>) => async () => ({
 const adminActions = (
   <>
     <Button icon={<CalendarDays size={16} />}>{formatLongDate(new Date())}</Button>
-    <Button icon={<Lock size={16} />} disabled title="Admin Mode / Lock Admin is an open decision (Q-AUTH-3)">
+    <Button icon={<Lock size={16} />} disabled title="Lock Admin is available in a later phase">
       Lock Admin
     </Button>
   </>

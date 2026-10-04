@@ -18,9 +18,6 @@ export interface PreferenceSettings {
   orderWaitingAlerts: boolean;
   lowStockAlerts: boolean;
   paymentAlerts: boolean;
-  autoClearCompleted: boolean;
-  returnToPosAfterPayment: boolean;
-  confirmCancelOrder: boolean;
   confirmRemoveCartItem: boolean;
 }
 
@@ -44,9 +41,6 @@ export const PREFERENCE_DEFAULTS: PreferenceSettings = {
   orderWaitingAlerts: true,
   lowStockAlerts: true,
   paymentAlerts: true,
-  autoClearCompleted: true,
-  returnToPosAfterPayment: true,
-  confirmCancelOrder: true,
   confirmRemoveCartItem: false,
 };
 

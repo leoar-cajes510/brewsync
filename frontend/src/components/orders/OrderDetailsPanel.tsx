@@ -4,6 +4,7 @@ import Button from '../ui/Button';
 import EmptyState from '../ui/EmptyState';
 import PaymentPanel from './PaymentPanel';
 import { useTerms } from '../../stores/terminologySettingsStore';
+import { can, useAuth } from '../../stores/authStore';
 import type { Order, OrderPayment, OrderStatus } from '../../types/order';
 import { formatPeso } from '../../utils/currency';
 import { formatTime, minutesSince, orderTotals, orderTypeLabel } from '../../utils/orderDisplay';
@@ -59,6 +60,7 @@ function Details({ order, now, onAdvance, onPay, collecting, onCollectingChange:
   const totals = orderTotals(order);
   const badge = statusBadge[order.status];
   const { term } = useTerms();
+  const { user } = useAuth();
 
   return (
     <>
@@ -67,9 +69,11 @@ function Details({ order, now, onAdvance, onPay, collecting, onCollectingChange:
           {term('order')} #{order.number}
         </h2>
         <Badge tone={badge.tone}>{badge.label}</Badge>
-        <button type="button" className="icon-btn details-panel__menu" aria-label="Order actions" title="Cancel order" onClick={() => onCancel(order)}>
-          <ClipboardList size={16} />
-        </button>
+        {can(user, 'pos.cancelOrders') && (
+          <button type="button" className="icon-btn details-panel__menu" aria-label="Order actions" title="Cancel order" onClick={() => onCancel(order)}>
+            <ClipboardList size={16} />
+          </button>
+        )}
       </div>
 
       <div className="details-panel__body">

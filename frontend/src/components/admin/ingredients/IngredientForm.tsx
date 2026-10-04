@@ -3,6 +3,7 @@ import Button from '../../ui/Button';
 import Input from '../../ui/Input';
 import Modal from '../../ui/Modal';
 import Select from '../../ui/Select';
+import { useStaffingSettings } from '../../../stores/staffingSettingsStore';
 import { INGREDIENT_UNITS, type Ingredient, type IngredientDraft } from '../../../types/ingredient';
 
 const CUSTOM = '__custom__';
@@ -34,10 +35,14 @@ export default function IngredientForm({ open, ingredient, categories, existingN
   const [f, setF] = useState<FormText>(blank);
   const [submitted, setSubmitted] = useState(false);
 
+  // Settings → Staffing → Low Stock Threshold is the starting value for a NEW ingredient (Q-INV-4: default only).
+  const { settings: staffing, loaded: staffingLoaded } = useStaffingSettings();
+  const defaultThreshold = staffingLoaded ? String(staffing.lowStockThreshold) : '';
+
   useEffect(() => {
     if (!open) return;
     setSubmitted(false);
-    if (!ingredient) return setF(blank);
+    if (!ingredient) return setF({ ...blank, threshold: defaultThreshold });
     const known = INGREDIENT_UNITS.includes(ingredient.unit);
     setF({
       name: ingredient.name,
@@ -49,7 +54,11 @@ export default function IngredientForm({ open, ingredient, categories, existingN
       threshold: String(ingredient.threshold),
       notes: ingredient.notes,
     });
-  }, [open, ingredient]);
+  }, [open, ingredient]); // eslint-disable-line react-hooks/exhaustive-deps -- reset only when opened
+
+  useEffect(() => {
+    if (open && !ingredient && defaultThreshold) setF((x) => (x.threshold === '' ? { ...x, threshold: defaultThreshold } : x));
+  }, [open, ingredient, defaultThreshold]);
 
   const set = (patch: Partial<FormText>) => setF((x) => ({ ...x, ...patch }));
   const unit = f.unitChoice === CUSTOM ? f.customUnit.trim() : f.unitChoice;

@@ -4,6 +4,7 @@ rows are locked in deterministic order; nothing is ever clamped."""
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy.exc import IntegrityError
@@ -17,7 +18,7 @@ from app.models import IngredientRow, StockLevelRow
 from app.repositories.inventory_repository import InventoryRepository
 from app.repositories.product_repository import ProductRepository
 from app.repositories.system_repository import SystemRepository
-from app.services.base import Actor, audit, domain_errors, emit, feature_on, idempotent, now, parse_uuid
+from app.services.base import Actor, audit, domain_errors, emit, feature_on, flag, idempotent, now, objects, parse_uuid, text
 from app.services.product_service import _dec
 
 
@@ -71,7 +72,7 @@ def move_stock(session: Session, actor: Actor, subject_type: SubjectType, subjec
                     raise validation("reason must be damaged, lost or other") from exc
                 mv = level.adjust(_dec(data.get("delta"), "delta"), reason, actor_id=who, at=at, note=note)
             elif action == "correct":
-                mv = level.correct(_dec(data.get("delta"), "delta"), str(data.get("reason", "")), actor_id=who, at=at,
+                mv = level.correct(_dec(data.get("delta"), "delta"), text(data.get("reason", ""), "reason"), actor_id=who, at=at,
                                    note=note)
             elif action == "waste":
                 mv = level.waste(_dec(data.get("quantity"), "quantity"), actor_id=who, at=at, note=note)
@@ -103,11 +104,13 @@ def create_ingredient(session: Session, actor: Actor, data: dict[str, Any]) -> d
         unit = IngredientUnit(data.get("unit"))
     except ValueError as exc:
         raise validation("unit must be g, kg, ml, L or pcs") from exc
+    if not text(data.get("code"), "code").strip():  # the UI sends the next ING-NN; never store an empty code
+        raise validation("code is required")
     with domain_errors():
-        ing = Ingredient(id="new", code=str(data.get("code", "")), name=str(data.get("name", "")), unit=unit,
-                         unit_cost=_dec(data.get("unit_cost", "0"), "unit_cost"), category=str(data.get("category", "")))
+        ing = Ingredient(id="new", code=text(data.get("code", ""), "code"), name=text(data.get("name", ""), "name"), unit=unit,
+                         unit_cost=_dec(data.get("unit_cost", "0"), "unit_cost"), category=text(data.get("category", ""), "category"))
     row = IngredientRow(business_id=actor.business_id, code=ing.code, name=ing.name.strip(), category=ing.category,
-                        unit=ing.unit.value, unit_cost=ing.unit_cost, notes=str(data.get("notes", "")), active=True)
+                        unit=ing.unit.value, unit_cost=ing.unit_cost, notes=text(data.get("notes", ""), "notes"), active=True)
     session.add(row)
     try:
         session.flush()
@@ -124,13 +127,15 @@ def create_ingredient(session: Session, actor: Actor, data: dict[str, Any]) -> d
             "stock": level_dto(level_row)}
 
 
-def set_recipe(session: Session, actor: Actor, product_id: str, lines: list[dict[str, Any]],
+def set_recipe(session: Session, actor: Actor, product_id: str, lines: list[dict[str, Any]] | None,
                track_ingredients: bool | None = None) -> dict[str, Any]:
     """Replace a product's recipe. Quantities are in each ingredient's own unit (Q-ING-4 open).
     ``track_ingredients`` switches recipe consumption on sales (Q-INV-1/Q-INV-2: reserved at order
     creation, released on cancel, finalized on completion). It needs a recipe with at least one
     line; an empty recipe always switches consumption off so orders cannot fail on it (ING-15)."""
     actor.require(PermissionKey.INGREDIENTS_RECIPES)
+    if lines is None:  # PUT replaces the whole recipe: a missing list must not silently empty it
+        raise validation("lines is required (send [] to clear the recipe)")
     repo = ProductRepository(session)
     pid = parse_uuid(product_id, "product")
     product = repo.product(pid)
@@ -138,7 +143,7 @@ def set_recipe(session: Session, actor: Actor, product_id: str, lines: list[dict
         raise not_found("product")
     recipe = Recipe(str(pid))
     with domain_errors():
-        for line in lines:
+        for line in objects(lines, "lines"):
             ing_row = repo.ingredient(parse_uuid(line.get("ingredient_id", ""), "ingredient"))
             if ing_row is None or ing_row.business_id != actor.business_id:
                 raise not_found("ingredient")
@@ -222,19 +227,25 @@ def update_ingredient(session: Session, actor: Actor, ingredient_id: str, data: 
         raise not_found("ingredient")
     if "unit" in data and data["unit"] != row.unit:
         raise validation("the unit of an existing ingredient cannot be changed")
+    snapshot = lambda: {"name": row.name, "category": row.category, "notes": row.notes,  # noqa: E731
+                        "unit_cost": f"{Decimal(row.unit_cost):.4f}", "active": row.active}
+    before = snapshot()
     with domain_errors():
-        ing = Ingredient(id=str(row.id), code=row.code, name=str(data.get("name", row.name)), unit=IngredientUnit(row.unit),
+        ing = Ingredient(id=str(row.id), code=row.code, name=text(data.get("name", row.name), "name"), unit=IngredientUnit(row.unit),
                          unit_cost=_dec(data.get("unit_cost", row.unit_cost), "unit_cost"),
-                         category=str(data.get("category", row.category)), notes=str(data.get("notes", row.notes)),
-                         active=bool(data.get("active", row.active)))
+                         category=text(data.get("category", row.category), "category"), notes=text(data.get("notes", row.notes), "notes"),
+                         active=flag(data.get("active"), "active", row.active))
     row.name, row.unit_cost, row.category = ing.name.strip(), ing.unit_cost, ing.category
     row.notes, row.active = ing.notes, ing.active
     try:
         session.flush()
     except IntegrityError as exc:
         raise AppError("CONFLICT", 409, "Ingredient name already exists") from exc
-    audit(SystemRepository(session), actor, actor.business_id, "ingredient.updated", "ingredient", row.id,
-          after={"active": row.active, "unit_cost": str(row.unit_cost)})
+    after = snapshot()
+    changed = [k for k in after if after[k] != before[k]]
+    if changed:  # only real changes are audited, with before/after of the changed fields
+        audit(SystemRepository(session), actor, actor.business_id, "ingredient.updated", "ingredient", row.id,
+              before={k: before[k] for k in changed}, after={k: after[k] for k in changed})
     levels = {r.subject_id: r for r in InventoryRepository(session).levels(actor.business_id, SubjectType.INGREDIENT)}
     return ingredient_dto(row, levels.get(row.id))
 

@@ -21,7 +21,7 @@ import Button from '../../components/ui/Button';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import Toggle from '../../components/ui/Toggle';
 import { ActionFeedback } from '../../components/receipts/ReceiptPrinter';
-import { FEATURES, FEATURE_DEFAULTS, saveFeatureSettings, useFeatureSettings, type FeatureFlags, type FeatureKey } from '../../stores/featureSettingsStore';
+import { FEATURES, FEATURE_DEFAULTS, INACTIVE_FEATURES, saveFeatureSettings, useFeatureSettings, type FeatureFlags, type FeatureKey } from '../../stores/featureSettingsStore';
 import { errorMessage } from '../../services/api';
 import '../../components/settings/settingsFeatures.css';
 
@@ -110,8 +110,13 @@ export default function SettingsFeaturesPage() {
                   <div className="ft-row__title">
                     <strong>{name}</strong>
                     <Badge tone={on ? 'success' : 'neutral'}>{on ? 'Enabled' : 'Disabled'}</Badge>
+                    {INACTIVE_FEATURES.includes(key) && (
+                      <span className="ft-tag" title="This setting is saved, but BrewSync does not act on it yet.">
+                        Not active yet
+                      </span>
+                    )}
                   </div>
-                  <p>{description}</p>
+                  <p>{description}{INACTIVE_FEATURES.includes(key) && ' Not active yet — saving it has no effect for now.'}</p>
                 </div>
                 <Toggle checked={on} onChange={(v) => setForm((f) => ({ ...f, [key]: v }))} label={`${on ? 'Disable' : 'Enable'} ${name}`} />
               </li>

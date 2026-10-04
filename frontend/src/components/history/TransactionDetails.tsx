@@ -5,6 +5,8 @@ import Button from '../ui/Button';
 import Modal from '../ui/Modal';
 import ReceiptPreview from '../receipts/ReceiptPreview';
 import RefundDialog from './RefundDialog';
+import { useFeatureSettings } from '../../stores/featureSettingsStore';
+import { can, useAuth } from '../../stores/authStore';
 import { transactionStatus } from './TransactionTable';
 import type { BusinessInfo, Transaction } from '../../types/receipt';
 import { formatPeso } from '../../utils/currency';
@@ -28,6 +30,9 @@ export default function TransactionDetails({ transaction: t, business, onClose, 
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [refunding, setRefunding] = useState(false);
+  const { flags } = useFeatureSettings();
+  const { user } = useAuth();
+  const mayRefund = can(user, 'pos.processRefunds');
   const totals = receiptTotals(t);
   const refundable = Math.max(totals.total - (t.refundedAmount ?? 0), 0);
   const status = transactionStatus[t.status];
@@ -188,8 +193,15 @@ export default function TransactionDetails({ transaction: t, business, onClose, 
             Kitchen Ticket
           </Button>
         </div>
-        <Button className="txn-refund-btn" block icon={<RotateCcw size={15} />} disabled={t.status === 'refunded'} onClick={() => setRefunding(true)}>
-          {t.status === 'refunded' ? 'Transaction Refunded' : 'Refund Transaction'}
+        <Button
+          className="txn-refund-btn"
+          block
+          icon={<RotateCcw size={15} />}
+          disabled={t.status === 'refunded' || !flags.refunds || !mayRefund}
+          title={!flags.refunds ? 'Refunds are turned off in Settings → Features' : !mayRefund ? 'Your role cannot process refunds' : undefined}
+          onClick={() => setRefunding(true)}
+        >
+          {t.status === 'refunded' ? 'Transaction Refunded' : flags.refunds ? 'Refund Transaction' : 'Refunds Turned Off'}
         </Button>
       </footer>
 

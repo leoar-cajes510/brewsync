@@ -359,7 +359,7 @@ export default function SettingsDiscountsPage() {
       <ConfirmDialog
         open={deleting !== null}
         title={`Remove “${deleting?.name ?? ''}”?`}
-        message={`${deleting?.name ?? 'This discount'} will no longer be available at checkout. A saved discount is kept as inactive so past orders still show it (Q-DEL-1).`}
+        message={`${deleting?.name ?? 'This discount'} will no longer be available at checkout. A saved discount is kept as inactive so past orders still show it.`}
         confirmLabel="Remove Discount"
         danger
         onConfirm={() => {

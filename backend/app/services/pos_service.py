@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import AppError
 from app.domain.inventory import SubjectType
 from app.services import inventory_service, product_service
-from app.services.base import Actor
+from app.repositories.system_repository import SystemRepository
+from app.services.base import Actor, feature_on
 
 
 def menu(session: Session, actor: Actor) -> dict[str, Any]:
@@ -20,6 +21,8 @@ def menu(session: Session, actor: Actor) -> dict[str, Any]:
         discounts = product_service.list_discounts(session, actor)
     except AppError:
         discounts = []
+    if not feature_on(SystemRepository(session), actor.business_id, "discounts"):
+        discounts = []  # Settings → Features → Discounts off: orders with a discount are refused anyway
     return {
         "categories": product_service.list_categories(session, actor),
         "products": product_service.list_products(session, actor),

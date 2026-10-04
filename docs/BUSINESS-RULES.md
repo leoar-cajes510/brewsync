@@ -137,7 +137,7 @@ Archive is a flag (`archived_at`), **not** a status (§12).
   - Movements are **rejected, never clamped**. (The current UI clamps adjustments to 0 — temporary behaviour.)
   - Database check constraints enforce the invariants as the last line of defence.
 - **R3.7 Status** is computed on **available**: `out` if available ≤ 0; `low` if available ≤ threshold; else `in`.
-- **R3.8 Threshold** is per stock subject, ≥ 0. The default source for new subjects is **⚠ OPEN (Q-INV-4)** (C-4: Staffing 10 vs catalog 5). *Interim safe behaviour — not a decision:* a new subject takes Staffing → Low Stock Threshold as its initial threshold.
+- **R3.8 Threshold** is per stock subject, ≥ 0. **Q-INV-4 (decided):** a new subject's threshold defaults to Staffing → Low Stock Threshold; existing per-item thresholds stay authoritative (no global override).
 - **R3.9 Alerts.** Every movement emits `stock.changed`. A movement that moves status from `in` to `low` emits `stock.low`; to `out` emits `stock.out` — alerts shown if Features → Low Stock Alerts and Preferences → Low Stock Alerts are on (precedence ⚠ OPEN Q-SET-2).
 - **R3.10 Permissions & gates.** Product stock: ⚑Inventory; restock ✱inventory.restock, adjust/correction/waste/threshold ✱inventory.adjust (protected). Ingredient stock: ⚑Ingredient Tracking; ✱ingredients.adjust (protected).
 - **R3.11 Audit** of every restock, adjustment, correction and waste (§21).
@@ -271,7 +271,7 @@ Settings → Tax (business-wide): `enabled`, `name`, `rate` (0 < r ≤ 100 when 
 - **R9.2** Reservations are released with `reservation_release` movements (R4.3).
 - **R9.3** Pending payments on the order are voided in the same transaction.
 - **R9.4 Orders with completed payments ⚠ OPEN (Q-CAN-1) ★** (interacts with the Refunds toggle, C-19, AR-14). *Interim safe behaviour — not a decision:* cancellation is rejected (409 CONFLICT) while the order has any `completed` payment.
-- **R9.5** Preferences → Require Confirmation Before Canceling Order is a UI prompt only; the server rule is R9.1.
+- **R9.5** Cancelling always opens the cancellation dialog with the required reason (R9.1); there is no preference to skip it (the former "Require Confirmation Before Canceling Order" setting was removed 2026-10-04).
 - **R9.6** A cancelled order is terminal, stays in the Admin review list, is never auto-archived (§12), is audited and emits `order.cancelled`.
 - **R9.7** Cancelling orders created online is unavailable offline (§19).
 

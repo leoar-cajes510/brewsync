@@ -9,6 +9,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import validation
 from app.domain.archive import ArchiveMethod, ArchivePolicy
 from app.domain.identity import PermissionKey
 from app.repositories.order_repository import OrderRepository
@@ -23,6 +24,14 @@ def _policy(system: SystemRepository, business_id) -> ArchivePolicy:  # type: ig
     with domain_errors():
         return ArchivePolicy(auto_archive_after=timedelta(hours=data["auto_archive_after_hours"]),
                              restore_window=timedelta(hours=data["restore_window_hours"]))
+
+
+def archive_orders(session: Session, actor: Actor, order_ids: list[str], reason: str) -> list[dict[str, Any]]:
+    """POST /archive: permission is checked even for an empty request, which is refused."""
+    actor.require(PermissionKey.ARCHIVE_MANAGE)
+    if not order_ids:
+        raise validation("order_ids must list at least one order")
+    return [archive_order(session, actor, oid, reason) for oid in order_ids]
 
 
 def archive_order(session: Session, actor: Actor, order_id: str, reason: str) -> dict[str, Any]:

@@ -66,3 +66,6 @@ export function useFeatureSettings() {
 
 export const saveFeatureSettings = (flags: FeatureFlags) => store.save(flags);
 
+
+/** Stored and shown in Settings, but nothing acts on them yet (real-time transport Q-ARCH-3 is open). */
+export const INACTIVE_FEATURES: readonly FeatureKey[] = ['lowStockAlerts', 'orderAlerts', 'liveUpdates', 'soundEffects'];

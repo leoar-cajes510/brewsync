@@ -49,16 +49,16 @@ export default function ProductImageUpload({ value, onChange }: ProductImageUplo
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);
-          readFile(e.dataTransfer.files[0]);
         }}
       >
         {value ? (
           <img src={value} alt="Product preview" className="image-upload__preview" />
         ) : (
-          <button type="button" className="image-upload__empty" onClick={pick}>
+          // Image storage is not connected yet (Q-ARCH-2): nothing picked here would be saved.
+          <button type="button" className="image-upload__empty" disabled title="Available in a later phase">
             <ImagePlus size={26} />
-            <strong>Upload image</strong>
-            <span>Drag &amp; drop or click · PNG, JPG, WEBP up to 5 MB</span>
+            <strong>Product images</strong>
+            <span>Available in a later phase — images are not stored yet</span>
           </button>
         )}
       </div>

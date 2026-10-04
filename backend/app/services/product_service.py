@@ -22,7 +22,7 @@ from app.models import CategoryRow, ChoiceGroupRow, ChoiceOptionRow, DiscountRow
 from app.repositories.inventory_repository import InventoryRepository
 from app.repositories.product_repository import ProductRepository
 from app.repositories.system_repository import SystemRepository
-from app.services.base import Actor, audit, domain_errors, feature_on, now, parse_uuid
+from app.services.base import Actor, audit, domain_errors, feature_on, flag, now, objects, parse_uuid, text
 
 
 def _dec(value: Any, field: str) -> Decimal:
@@ -67,7 +67,7 @@ def _ensure_unique_category_name(session: Session, actor: Actor, name: str, excl
 def create_category(session: Session, actor: Actor, data: dict[str, Any]) -> dict[str, Any]:
     actor.require(PermissionKey.PRODUCTS_EDIT)
     with domain_errors():
-        cat = Category(id="new", name=str(data.get("name", "")), code_prefix=str(data.get("code_prefix") or ""),
+        cat = Category(id="new", name=text(data.get("name", ""), "name"), code_prefix=text(data.get("code_prefix"), "code_prefix"),
                        sort_order=int(data.get("sort_order", 0)))
     _ensure_unique_category_name(session, actor, cat.name)
     row = CategoryRow(business_id=actor.business_id, name=cat.name, code_prefix=cat.code_prefix,
@@ -123,14 +123,14 @@ def create_product(session: Session, actor: Actor, data: dict[str, Any]) -> dict
     with domain_errors():
         # The server generates the code (PREFIX-NNN, one counter per category). An explicit
         # ``code`` is still accepted for API backward compatibility; the UI never sends one.
-        supplied = str(data.get("code") or "").strip()
+        supplied = text(data.get("code"), "code").strip()
         code = normalize_product_code(supplied) if supplied else _next_product_code(session, actor, category)
-        product = Product(id="new", code=code, name=str(data.get("name", "")),
+        product = Product(id="new", code=code, name=text(data.get("name", ""), "name"),
                           category_id=str(category_id), price=Money.of(_dec(data.get("price"), "price"), actor.currency),
-                          tax_class=tax_class, description=str(data.get("description", "")),
-                          image_ref=data.get("image_url"), available=bool(data.get("available", True)),
-                          active=True, track_units=bool(data.get("track_units", False)),
-                          track_ingredients=bool(data.get("track_ingredients", False)))
+                          tax_class=tax_class, description=text(data.get("description", ""), "description"),
+                          image_ref=data.get("image_url"), available=flag(data.get("available"), "available", True),
+                          active=True, track_units=flag(data.get("track_units"), "track_units", False),
+                          track_ingredients=flag(data.get("track_ingredients"), "track_ingredients", False))
     row = ProductRow(business_id=actor.business_id, code=product.code, name=product.name,
                      description=product.description, category_id=category_id, price=product.price.amount,
                      image_url=product.image_ref, available=product.available, active=True,
@@ -166,7 +166,7 @@ def update_product(session: Session, actor: Actor, product_id: str, data: dict[s
     if row is None or row.business_id != actor.business_id:
         raise not_found("product")
     before = product_dto(row)
-    if "code" in data and str(data["code"] or "").strip().upper() != row.code:
+    if "code" in data and text(data["code"], "code").strip().upper() != row.code:
         raise validation("product code cannot be changed after creation")
     if "price" in data:
         with domain_errors():
@@ -176,15 +176,15 @@ def update_product(session: Session, actor: Actor, product_id: str, data: dict[s
             row.tax_class = TaxClass(data["tax_class"]).value
         except ValueError as exc:
             raise validation("invalid tax_class") from exc
-    for flag in ("available", "active"):
-        if flag in data:
-            setattr(row, flag, bool(data[flag]))
+    for key in ("available", "active"):
+        if key in data:
+            setattr(row, key, flag(data[key], key, getattr(row, key)))
     if "name" in data:
-        if not str(data["name"]).strip():
+        if not text(data["name"], "name").strip():
             raise validation("name is required")
-        row.name = str(data["name"]).strip()
+        row.name = text(data["name"], "name").strip()
     if "description" in data:
-        row.description = str(data["description"] or "").strip()
+        row.description = text(data["description"], "description").strip()
     if "category_id" in data:
         category_id = parse_uuid(data["category_id"], "category")
         category = repo.category(category_id)
@@ -205,16 +205,16 @@ def update_product(session: Session, actor: Actor, product_id: str, data: dict[s
 def create_choice_group(session: Session, actor: Actor, data: dict[str, Any]) -> dict[str, Any]:
     actor.require(PermissionKey.CHOICES_MANAGE)
     group_id = uuid.uuid4()
-    options_in = data.get("options") or []
+    options_in = objects(data.get("options"), "options")
     with domain_errors():
-        options = tuple(ChoiceOption(str(uuid.uuid4()), str(group_id), str(o.get("name", "")),
+        options = tuple(ChoiceOption(str(uuid.uuid4()), str(group_id), text(o.get("name", ""), "options.name"),
                                      Money.of(_dec(o.get("price_delta", "0"), "price_delta"), actor.currency),
-                                     bool(o.get("is_default", False)), True, i) for i, o in enumerate(options_in))
-        group = ChoiceGroup(id=str(group_id), code=str(data.get("code", "")), name=str(data.get("name", "")),
+                                     flag(o.get("is_default"), "is_default", False), True, i) for i, o in enumerate(options_in))
+        group = ChoiceGroup(id=str(group_id), code=text(data.get("code", ""), "code"), name=text(data.get("name", ""), "name"),
                             selection_type=SelectionType(data.get("selection_type", "")),
-                            required=bool(data.get("required")), min_select=int(data.get("min_select", 0)),
+                            required=flag(data.get("required"), "required"), min_select=int(data.get("min_select", 0)),
                             max_select=int(data.get("max_select", 1)), options=options,
-                            display_name=str(data.get("display_name", "")), description=str(data.get("description", "")))
+                            display_name=text(data.get("display_name", ""), "display_name"), description=text(data.get("description", ""), "description"))
     session.add(ChoiceGroupRow(id=group_id, business_id=actor.business_id, code=group.code, name=group.name,
                                display_name=group.display_name, description=group.description,
                                selection_type=group.selection_type.value, required=group.required,
@@ -258,10 +258,10 @@ def create_discount(session: Session, actor: Actor, data: dict[str, Any]) -> dic
     money = lambda key: Money.of(_dec(data[key], key), actor.currency) if data.get(key) not in (None, "") else None  # noqa: E731
     with domain_errors():
         discount = Discount(
-            id="new", name=str(data.get("name", "")), type=DiscountType(data.get("type")), value=_dec(data.get("value"), "value"),
+            id="new", name=text(data.get("name", ""), "name"), type=DiscountType(data.get("type")), value=_dec(data.get("value"), "value"),
             eligibility=Eligibility(data.get("eligibility", "all")), currency=actor.currency,
-            custom_eligibility=str(data.get("custom_eligibility", "")), min_order=money("min_order"),
-            max_discount=money("max_discount"), requires_identification=bool(data.get("requires_identification", False)),
+            custom_eligibility=text(data.get("custom_eligibility", ""), "custom_eligibility"), min_order=money("min_order"),
+            max_discount=money("max_discount"), requires_identification=flag(data.get("requires_identification"), "requires_identification", False),
             identification_fields=frozenset(IdentificationField(f) for f in data.get("identification_fields", [])))
     row = DiscountRow(business_id=actor.business_id, name=discount.name, type=discount.type.value, value=discount.value,
                       eligibility=discount.eligibility.value, custom_eligibility=discount.custom_eligibility,
@@ -287,11 +287,11 @@ def update_category(session: Session, actor: Actor, category_id: str, data: dict
     if row is None or row.business_id != actor.business_id:
         raise not_found("category")
     before = category_dto(row)
-    if "code_prefix" in data and str(data["code_prefix"] or "").strip().upper() != row.code_prefix:
+    if "code_prefix" in data and text(data["code_prefix"], "code_prefix").strip().upper() != row.code_prefix:
         raise validation("code prefix cannot be changed after the category is created")
     with domain_errors():
-        cat = Category(id=str(row.id), name=str(data.get("name", row.name)), code_prefix=row.code_prefix,
-                       sort_order=int(data.get("sort_order", row.sort_order)), active=bool(data.get("active", row.active)))
+        cat = Category(id=str(row.id), name=text(data.get("name", row.name), "name"), code_prefix=row.code_prefix,
+                       sort_order=int(data.get("sort_order", row.sort_order)), active=flag(data.get("active"), "active", row.active))
     if cat.name.strip().lower() != row.name.strip().lower():
         _ensure_unique_category_name(session, actor, cat.name, exclude=row.id)
     row.name, row.sort_order, row.active = cat.name, cat.sort_order, cat.active
@@ -316,7 +316,7 @@ def update_choice_group(session: Session, actor: Actor, group_id: str, data: dic
     if row is None or row.business_id != actor.business_id:
         raise not_found("choice group")
     existing = {o.id: o for o in repo.options([gid])}
-    options_in = data.get("options")
+    options_in = objects(data.get("options"), "options") if data.get("options") is not None else None
     planned: list[tuple[ChoiceOptionRow | None, dict[str, Any]]] = []
     if options_in is not None:
         seen: set[uuid.UUID] = set()
@@ -339,18 +339,18 @@ def update_choice_group(session: Session, actor: Actor, group_id: str, data: dic
         for i, (orow, o) in enumerate(planned):
             oid = orow.id if orow is not None else new_ids.setdefault(i, uuid.uuid4())
             options.append(ChoiceOption(
-                str(oid), str(gid), str(o.get("name", orow.name if orow else "")),
+                str(oid), str(gid), text(o.get("name", orow.name if orow else ""), "options.name"),
                 Money.of(_dec(o.get("price_delta", orow.price_delta if orow else "0"), "price_delta"), actor.currency),
-                bool(o.get("is_default", orow.is_default if orow else False)),
-                bool(o.get("active", orow.active if orow else True)),
+                flag(o.get("is_default"), "is_default", orow.is_default if orow else False),
+                flag(o.get("active"), "active", orow.active if orow else True),
                 int(o.get("sort_order", i))))
         group = ChoiceGroup(
-            id=str(gid), code=row.code, name=str(data.get("name", row.name)),
+            id=str(gid), code=row.code, name=text(data.get("name", row.name), "name"),
             selection_type=SelectionType(data.get("selection_type", row.selection_type)),
-            required=bool(data.get("required", row.required)), min_select=int(data.get("min_select", row.min_select)),
+            required=flag(data.get("required"), "required", row.required), min_select=int(data.get("min_select", row.min_select)),
             max_select=int(data.get("max_select", row.max_select)), options=tuple(options),
-            display_name=str(data.get("display_name", row.display_name)),
-            description=str(data.get("description", row.description)), active=bool(data.get("active", row.active)))
+            display_name=text(data.get("display_name", row.display_name), "display_name"),
+            description=text(data.get("description", row.description), "description"), active=flag(data.get("active"), "active", row.active))
     row.name, row.display_name, row.description = group.name, group.display_name, group.description
     row.selection_type, row.required = group.selection_type.value, group.required
     row.min_select, row.max_select, row.active = group.min_select, group.max_select, group.active
@@ -416,11 +416,11 @@ def update_discount(session: Session, actor: Actor, discount_id: str, data: dict
     money = lambda key: Money.of(_dec(merged[key], key), actor.currency) if merged.get(key) not in (None, "") else None  # noqa: E731
     with domain_errors():
         d = Discount(
-            id=str(row.id), name=str(merged.get("name", "")), type=DiscountType(merged.get("type")),
+            id=str(row.id), name=text(merged.get("name"), "name"), type=DiscountType(merged.get("type")),
             value=_dec(merged.get("value"), "value"), eligibility=Eligibility(merged.get("eligibility", "all")),
-            currency=actor.currency, custom_eligibility=str(merged.get("custom_eligibility") or ""),
-            min_order=money("min_order"), max_discount=money("max_discount"), active=bool(merged.get("active", True)),
-            requires_identification=bool(merged.get("requires_identification", False)),
+            currency=actor.currency, custom_eligibility=text(merged.get("custom_eligibility"), "custom_eligibility"),
+            min_order=money("min_order"), max_discount=money("max_discount"), active=flag(merged.get("active"), "active", True),
+            requires_identification=flag(merged.get("requires_identification"), "requires_identification", False),
             identification_fields=frozenset(IdentificationField(f) for f in merged.get("identification_fields") or []))
     row.name, row.type, row.value, row.eligibility = d.name, d.type.value, d.value, d.eligibility.value
     row.custom_eligibility = d.custom_eligibility

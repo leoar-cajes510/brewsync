@@ -13,7 +13,7 @@ from app.domain.identity import PermissionKey, TerminalStatus
 from app.models import TerminalRow
 from app.repositories.staff_repository import StaffRepository
 from app.repositories.system_repository import SystemRepository
-from app.services.base import Actor, audit, domain_errors, emit, now, section
+from app.services.base import Actor, audit, domain_errors, emit, now, section, text
 from app.services.setup_service import require_completed
 
 MAX_ACTIVATION_MINUTES = 24 * 60
@@ -41,7 +41,7 @@ def register(session: Session, actor: Actor, data: dict[str, Any]) -> dict[str, 
     """Admin registers a terminal; the one-time activation code is returned once."""
     actor.require(PermissionKey.TERMINALS_MANAGE)
     staff, system = StaffRepository(session), SystemRepository(session)
-    code, name = str(data.get("code", "")).strip().upper(), str(data.get("name", "")).strip()
+    code, name = text(data.get("code", ""), "code").strip().upper(), text(data.get("name", ""), "name").strip()
     if not code or not name:
         raise validation("terminal code and name are required")
     if staff.terminal_by_code(actor.business_id, code):
@@ -134,7 +134,7 @@ def rename(session: Session, actor: Actor, terminal_id: Any, data: dict[str, Any
     actor.require(PermissionKey.TERMINALS_MANAGE)
     staff, system = StaffRepository(session), SystemRepository(session)
     row = _owned(staff, actor, terminal_id)
-    name = str(data.get("name", "")).strip()
+    name = text(data.get("name", ""), "name").strip()
     if not name or len(name) > 80:
         raise validation("terminal name is required (≤ 80 characters)")
     before, row.name = row.name, name

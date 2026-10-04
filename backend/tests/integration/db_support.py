@@ -1,6 +1,7 @@
 """Integration-test harness against a REAL PostgreSQL database.
 
-- Uses DATABASE_URL from the environment / .env; tests are skipped (not faked) without it.
+- Uses TEST_DATABASE_URL only (environment or .env) — never DATABASE_URL — and refuses any non-local host,
+  because setup DROPs the test schema. Tests are skipped (not faked) without it.
 - Everything runs in a separate schema (TEST_DB_SCHEMA, default ``brewsync_test``) created by
   the real Alembic migration, so the application schema and any other tables are untouched.
 - Each test starts from an EMPTY database (tables truncated); data is created through the API,
@@ -26,12 +27,15 @@ from alembic.config import Config  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
-from app.core.config import get_settings  # noqa: E402
+from app.core.config import database_target, get_settings, is_local_database  # noqa: E402
 
 get_settings.cache_clear()
 SETTINGS = get_settings()
 SCHEMA = os.environ.get("TEST_DB_SCHEMA", "brewsync_test")
-DB_URL = SETTINGS.database_url
+DB_URL = SETTINGS.test_database_url
+if DB_URL and not is_local_database(DB_URL):  # no override: destructive setup must never reach a remote DB
+    raise SystemExit(f"Refusing to run integration tests against remote host {database_target(DB_URL)[0]}; "
+                     "TEST_DATABASE_URL must point at a local PostgreSQL.")
 
 _migrated = False
 
@@ -53,7 +57,7 @@ def migrate_fresh() -> None:
     _migrated = True
 
 
-@unittest.skipUnless(DB_URL, "DATABASE_URL not configured — integration tests need a real PostgreSQL")
+@unittest.skipUnless(DB_URL, "TEST_DATABASE_URL not configured — integration tests need a local PostgreSQL")
 class DbTestCase(unittest.TestCase):
     engine: Any
 

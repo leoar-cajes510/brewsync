@@ -21,6 +21,10 @@ interface CartPanelProps {
   orderNumber: string;
   orderType: OrderType;
   onOrderTypeChange: (type: OrderType) => void;
+  /** Preferences → Show Order Type Selection During Checkout; when off the default type applies. */
+  showOrderType?: boolean;
+  /** Settings → Features → Discounts; when off no discount can be added. */
+  discountsEnabled?: boolean;
   lines: CartLine[];
   totals: CartTotals;
   discountLabel: string | null;
@@ -47,6 +51,8 @@ export default function CartPanel({
   orderNumber,
   orderType,
   onOrderTypeChange,
+  showOrderType = true,
+  discountsEnabled = true,
   lines,
   totals,
   discountLabel,
@@ -75,9 +81,11 @@ export default function CartPanel({
             <ListX size={16} />
           </button>
         </div>
-        <div className="cart-panel__type">
-          <Tabs items={orderTypes} value={orderType} onChange={(v) => onOrderTypeChange(v as OrderType)} />
-        </div>
+        {showOrderType && (
+          <div className="cart-panel__type">
+            <Tabs items={orderTypes} value={orderType} onChange={(v) => onOrderTypeChange(v as OrderType)} />
+          </div>
+        )}
         <div className="cart-panel__customer">
           <User size={15} />
           <span>Customer: Walk-in</span>
@@ -119,10 +127,12 @@ export default function CartPanel({
                 <X size={12} />
               </button>
             </span>
-          ) : (
+          ) : discountsEnabled ? (
             <button type="button" className="link-btn" onClick={onOpenDiscount} disabled={empty}>
               <Tag size={13} /> Add Discount
             </button>
+          ) : (
+            <span>Discount</span>
           )}
           <span className="summary-row__success">
             {totals.discount > 0 ? `−${formatPeso(totals.discount)}` : formatPeso(0)}

@@ -20,3 +20,21 @@ backend/.venv/
 *.log
 frontend/tsconfig.tsbuildinfo
 .vercelignore.local
+
+# Environment / credentials (never commit; Production URL lives in Vercel + ~/.brewsync/prod.env)
+.env.*
+!.env.example
+prod.env
+*_db_url
+setup_token
+*.pem
+*.key
+
+# Build output / logs / local audit artifacts
+dist/
+logs/
+audit/
+*.dump
+*.sql.gz
+playwright-report/
+test-results/

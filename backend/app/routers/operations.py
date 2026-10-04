@@ -59,7 +59,7 @@ def update_product(product_id: str, request: Request, body: dict[str, Any] = Bod
 @router.put("/products/{product_id}/recipe", tags=["catalog"])
 def set_recipe(product_id: str, request: Request, body: dict[str, Any] = Body(...)):  # type: ignore[no-untyped-def]
     return respond(authed(request, lambda s, a: inventory_service.set_recipe(
-        s, a, product_id, body.get("lines", []), body.get("track_ingredients"))))
+        s, a, product_id, body.get("lines"), body.get("track_ingredients"))))
 
 
 @router.get("/products/{product_id}/recipe", tags=["catalog"])
@@ -256,8 +256,7 @@ def list_archive(request: Request):  # type: ignore[no-untyped-def]
 
 @router.post("/archive", tags=["archive"])
 def archive(body: ArchiveRequest, request: Request):  # type: ignore[no-untyped-def]
-    return respond(authed(request, lambda s, a: [archive_service.archive_order(s, a, oid, body.reason)
-                                                 for oid in body.order_ids]))
+    return respond(authed(request, lambda s, a: archive_service.archive_orders(s, a, body.order_ids, body.reason)))
 
 
 @router.post("/archive/{order_id}/restore", tags=["archive"])

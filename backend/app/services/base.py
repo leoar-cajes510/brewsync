@@ -15,7 +15,7 @@ from typing import Any, TypeVar
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import AppError, from_domain, permission_denied, settings_required
+from app.core.exceptions import AppError, from_domain, permission_denied, settings_required, validation
 from app.domain.errors import DomainError
 from app.domain.identity import PermissionKey, RoleKey
 from app.repositories.system_repository import SystemRepository
@@ -61,6 +61,37 @@ def domain_errors() -> Iterator[None]:
         yield
     except DomainError as exc:
         raise from_domain(exc) from exc
+    except (ValueError, TypeError) as exc:  # request values parsed here (enums, ints) → 422, never 500
+        raise validation(str(exc)) from exc
+
+
+def flag(value: Any, field: str, default: bool = False) -> bool:
+    """A request boolean: JSON true/false only; null/missing → default. Text such as "false" → 422 (bool("false")
+    would be True)."""
+    if value is None:
+        return default
+    if not isinstance(value, bool):
+        raise validation(f"{field} must be true or false")
+    return value
+
+
+def text(value: Any, field: str) -> str:
+    """A request text field: null/missing → "", anything that is not a string → 422 (never stored as "None"
+    or "{'a': 1}")."""
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise validation(f"{field} must be text")
+    return value
+
+
+def objects(value: Any, field: str) -> list[dict]:
+    """A request list whose items must be JSON objects (options, recipe lines…)."""
+    if value is None:
+        return []
+    if not isinstance(value, list) or any(not isinstance(v, dict) for v in value):
+        raise validation(f"{field} must be a list of objects")
+    return value
 
 
 def section(system: SystemRepository, business_id: uuid.UUID, name: str, *, required: bool = True) -> dict | None:

@@ -14,7 +14,7 @@ import '../../components/auth/login.css';
 // Split layout from the Stitch reference. The left panel is static product copy only; the
 // only live state shown is what the client actually knows (server reachable, device activated).
 export default function LoginPage() {
-  const { phase, notice, error } = useAuth();
+  const { phase, notice, error, lockedUsername } = useAuth();
   const [activating, setActivating] = useState(false);
   const [activated, setActivated] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -58,6 +58,7 @@ export default function LoginPage() {
     body = (
       <LoginForm
         notice={activated ? `This device is now terminal ${activated}. Sign in to continue.` : notice}
+        initialUsername={activated ? '' : (lockedUsername ?? '')}
         terminalCode={activated}
         onActivate={() => setActivating(true)}
       />

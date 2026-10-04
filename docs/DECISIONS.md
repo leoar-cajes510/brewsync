@@ -112,7 +112,8 @@ The **business row and the first Admin are not seeded** — the owner creates th
 - **Why it matters:** Settings → Staffing has *Low Stock Threshold* (default 10), while the product catalogue code uses a separate default of 5 for new stock records (C-4).
 - **Options:** (a) Staffing value is the default for every new product/ingredient. (b) Staffing value is a global threshold overriding per-item values. (c) Per-item only; Staffing value unused.
 - **Implementation needs:** which value applies to `stock_levels.low_stock_threshold` when an item has none; `stock.low` event rule.
-- **Decision:** ⚠ OPEN
+- **Approved rule:** (a) — Settings → Staffing → Low Stock Threshold is the **default** threshold pre-filled for newly created products and ingredients. Existing per-item thresholds remain authoritative; the Staffing value is never a global override and changing it does not alter existing items.
+- **Decision:** DECIDED — 2026-10-04 (owner approval).
 
 ### Q-ING-2 Do choice options consume ingredients?
 - **Why it matters:** "Oat Milk", "Extra Shot", or larger sizes change ingredient usage and cost — and now also the ingredient **reservation** made at order creation (Q-INV-2).
@@ -554,7 +555,7 @@ Where the approved wording needed interpretation to be implementable, the interp
 ## Summary
 
 - **Decided: 30** — Q-ORD-1, Q-INV-1, Q-INV-2, Q-INV-3, Q-PAY-1, Q-PAY-2, Q-REF-4, Q-REF-1, Q-DSC-1, Q-DSC-2, Q-DSC-3, Q-TAX-1, Q-TAX-2, Q-TAX-3, Q-RCP-1, Q-RCP-2, Q-ARC-1, Q-ARC-4, Q-ARC-2, Q-ARC-3, Q-DEL-1, Q-AUTH-1, Q-AUTH-2, Q-AUTH-4, Q-TRM-1, Q-TRM-2, Q-TRM-3, Q-TRM-4, Q-TRM-5, Q-SET-1.
-- **Open: 40** — Q-ORD-2, Q-ORD-3, Q-ORD-4, Q-ORD-5, Q-ORD-6, Q-INV-4, Q-ING-2, Q-ING-3, Q-ING-4, Q-PAY-3, Q-PAY-4, Q-REF-2, Q-REF-3, Q-REF-5, Q-CAN-1, Q-DSC-4, Q-RCP-3, Q-RCP-4, Q-RCP-5, Q-ARC-5, Q-EXP-1, Q-EXP-2, Q-AUTH-3, Q-AUTH-5, Q-AUTH-6, Q-AUTH-7, Q-AUTH-8, Q-TRM-6, Q-TRM-7, Q-TRM-8, Q-SET-2, Q-SET-3, Q-SET-4, Q-FEAT-1, Q-FEAT-2, Q-BUS-1, Q-ARCH-1, Q-ARCH-2, Q-ARCH-3, Q-ARCH-4.
+- **Open: 39** — Q-ORD-2, Q-ORD-3, Q-ORD-4, Q-ORD-5, Q-ORD-6, Q-ING-2, Q-ING-3, Q-ING-4, Q-PAY-3, Q-PAY-4, Q-REF-2, Q-REF-3, Q-REF-5, Q-CAN-1, Q-DSC-4, Q-RCP-3, Q-RCP-4, Q-RCP-5, Q-ARC-5, Q-EXP-1, Q-EXP-2, Q-AUTH-3, Q-AUTH-5, Q-AUTH-6, Q-AUTH-7, Q-AUTH-8, Q-TRM-6, Q-TRM-7, Q-TRM-8, Q-SET-2, Q-SET-3, Q-SET-4, Q-FEAT-1, Q-FEAT-2, Q-BUS-1, Q-ARCH-1, Q-ARCH-2, Q-ARCH-3, Q-ARCH-4.
   - **★ Blocking open: 12** — Q-PAY-3, Q-REF-2, Q-REF-5, Q-CAN-1, Q-RCP-5, Q-AUTH-7, Q-AUTH-8, Q-TRM-7, Q-TRM-8, Q-SET-4, Q-ARCH-1, Q-ARCH-3.
   - **⚖ Open: 5** — Q-ORD-5 (VR-7), Q-REF-2 (VR-8), Q-RCP-3 (VR-3), Q-RCP-5 (VR-3), Q-ARC-5 (VR-6, VR-7).
 - **Approved system rules: 11** (SR-1 … SR-11). **Verification items: 8** (VR-1 … VR-8). **Recorded interpretations: 14** (I-1 … I-14).
@@ -567,7 +568,7 @@ Where the approved wording needed interpretation to be implementable, the interp
 | C-1 | Two password policies: Staff UI (`types/auth.ts`: 8+, letter, number) vs Account UI (`accountStore.ts`: 8+, number, uppercase) | Resolved in principle by Q-AUTH-2: one server-enforced credential policy; values **Q-AUTH-7** (open). UI unchanged. |
 | C-2 | Settings → Branding logo vs Settings → Receipts logo | OPEN → Q-RCP-4 |
 | C-3 | "Show Tax on Receipt" (Tax) vs "Show Tax" (Receipts) | OPEN → Q-SET-2; compliance field locks (Q-RCP-2) override display toggles when set |
-| C-4 | `catalogStore.DEFAULT_LOW_STOCK_THRESHOLD = 5` vs Staffing default 10 | OPEN → Q-INV-4 |
+| C-4 | `catalogStore.DEFAULT_LOW_STOCK_THRESHOLD = 5` vs Staffing default 10 | RESOLVED by Q-INV-4 (Staffing value is the default for new items; catalogue display fallback no longer a creation default) |
 | C-5 | Features vs Preferences duplicate switches (sounds, live updates, alerts) | OPEN → Q-SET-2 (simplified: both business-wide now, Q-SET-1) |
 | C-6 | `ReceiptStatus` has `partial-refund`; History UI refunds full only | RESOLVED by Q-REF-1 (UI adds partial refunds later; granularity Q-REF-5) |
 | C-7 | Orders demo shows unpaid orders; POS checkout requires payment | RESOLVED by Q-ORD-1 (POS UI adds create-without-payment later; Q-ORD-6) |

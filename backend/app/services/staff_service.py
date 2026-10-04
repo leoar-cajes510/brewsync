@@ -13,7 +13,7 @@ from app.models import UserRow
 from app.repositories.staff_repository import StaffRepository
 from app.repositories.system_repository import SystemRepository
 from app.services.auth_service import ensure_method_allowed, validate_credential
-from app.services.base import Actor, audit, domain_errors, emit, now, parse_uuid, section
+from app.services.base import Actor, audit, domain_errors, emit, now, parse_uuid, section, text
 from app.services.settings_service import security_settings
 
 
@@ -48,14 +48,14 @@ def create_staff(session: Session, actor: Actor, data: dict[str, Any]) -> dict[s
     if role_key is RoleKey.ADMIN and staff.count_users(actor.business_id, role_row.id) >= staffing["max_admins"]:
         raise AppError("LIMIT_REACHED", 409, "Maximum administrators reached")
     _, _, lengths = security_settings(section(system, actor.business_id, "security") or {})
-    credential = str(data.get("credential", ""))
+    credential = text(data.get("credential", ""), "credential")
     validate_credential(method, credential, lengths)
-    username = str(data.get("username", "")).strip().lower()
+    username = text(data.get("username", ""), "username").strip().lower()
     if staff.user_by_username(actor.business_id, username):
         raise AppError("CONFLICT", 409, "Username already exists")
     with domain_errors():
         user = User(id="new", code=f"STF-{system.next_value(actor.business_id, 'staff'):02d}", username=username,
-                    full_name=str(data.get("full_name", "")), role=role_key, auth_method=method,
+                    full_name=text(data.get("full_name", ""), "full_name"), role=role_key, auth_method=method,
                     must_change_credential=True)
     hashed = hash_credential(credential)
     row = UserRow(business_id=actor.business_id, code=user.code, username=user.username, full_name=user.full_name,
@@ -85,18 +85,27 @@ def _guard_last_admin(staff: StaffRepository, actor: Actor, row: UserRow) -> Non
         raise AppError("PERMISSION_DENIED", 403, "The last active Admin cannot be deactivated or demoted")
 
 
+def _guard_admin_limit(staff: StaffRepository, system: SystemRepository, actor: Actor) -> None:
+    """Settings → Staffing → Max administrators also applies to promotions and reactivations."""
+    staffing = section(system, actor.business_id, "staffing") or {}
+    role_row = staff.role(RoleKey.ADMIN)
+    assert role_row is not None
+    if staff.count_users(actor.business_id, role_row.id) >= staffing["max_admins"]:
+        raise AppError("LIMIT_REACHED", 409, "Maximum administrators reached")
+
+
 def update_staff(session: Session, actor: Actor, user_id: str, data: dict[str, Any]) -> dict[str, Any]:
     """PATCH /staff/{id}: full name (✱staff.edit) and role (✱staff.managePermissions). Username
     rename is ⚠ OPEN (Q-AUTH-5) and not accepted."""
     actor.require(PermissionKey.STAFF_EDIT)
     staff, system = StaffRepository(session), SystemRepository(session)
     row = _load_user(staff, actor, user_id)
-    if "username" in data and str(data["username"]).strip().lower() != row.username:
+    if "username" in data and text(data["username"], "username").strip().lower() != row.username:
         raise AppError("DECISION_PENDING", 409, "Renaming a username is not decided yet", {"question_id": "Q-AUTH-5"})
     user = staff.to_domain_user(row)
     before_role = user.role.value
     if "full_name" in data:
-        name = str(data["full_name"]).strip()
+        name = text(data["full_name"], "full_name").strip()
         if not name:
             raise validation("full name is required")
         row.full_name = name
@@ -110,6 +119,8 @@ def update_staff(session: Session, actor: Actor, user_id: str, data: dict[str, A
             _guard_last_admin(staff, actor, row)
         with domain_errors():
             user.change_role(new_role, changed_by=str(actor.user_id))
+        if new_role is RoleKey.ADMIN and user.is_active:
+            _guard_admin_limit(staff, system, actor)
         staff.apply_user(row, user)
     session.flush()
     audit(system, actor, actor.business_id, "staff.updated", "user", row.id,
@@ -129,6 +140,8 @@ def set_staff_status(session: Session, actor: Actor, user_id: str, active: bool)
         staffing = section(system, actor.business_id, "staffing") or {}
         if staff.count_users(actor.business_id) >= staffing["max_staff"]:
             raise AppError("LIMIT_REACHED", 409, "Maximum staff accounts reached")
+        if user.role is RoleKey.ADMIN:
+            _guard_admin_limit(staff, system, actor)
         user.activate()
     else:
         _guard_last_admin(staff, actor, row)
@@ -151,7 +164,7 @@ def reset_credential(session: Session, actor: Actor, user_id: str, data: dict[st
     row = _load_user(staff, actor, user_id)
     method = AuthMethod(row.auth_method)
     _, _, lengths = security_settings(section(system, actor.business_id, "security") or {})
-    credential = str(data.get("credential", ""))
+    credential = text(data.get("credential", ""), "credential")
     validate_credential(method, credential, lengths)
     hashed = hash_credential(credential)
     if method is AuthMethod.PASSWORD:

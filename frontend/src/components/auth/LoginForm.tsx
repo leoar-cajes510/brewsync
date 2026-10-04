@@ -5,6 +5,8 @@ import { hasDevice, signIn } from '../../stores/authStore';
 
 interface LoginFormProps {
   notice: string | null;
+  /** Pre-filled after a manual lock (R14.11). */
+  initialUsername?: string;
   /** Terminal code just activated on this device (known only right after activation). */
   terminalCode?: string | null;
   onActivate: () => void;
@@ -14,8 +16,8 @@ interface LoginFormProps {
 // and returns one generic error for any sign-in failure. The credential field always starts
 // empty: it stays read-only until focused so the browser cannot pre-fill a saved credential
 // on a shared terminal.
-export default function LoginForm({ notice, terminalCode, onActivate }: LoginFormProps) {
-  const [username, setUsername] = useState('');
+export default function LoginForm({ notice, initialUsername = '', terminalCode, onActivate }: LoginFormProps) {
+  const [username, setUsername] = useState(initialUsername);
   const [credential, setCredential] = useState('');
   const [credentialReady, setCredentialReady] = useState(false);
   const [showCredential, setShowCredential] = useState(false);

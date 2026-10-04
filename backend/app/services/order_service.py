@@ -23,7 +23,7 @@ from app.repositories.inventory_repository import InventoryRepository
 from app.repositories.order_repository import OrderRepository
 from app.repositories.product_repository import ProductRepository
 from app.repositories.system_repository import SystemRepository
-from app.services.base import Actor, audit, domain_errors, emit, feature_on, idempotent, now, parse_uuid, section
+from app.services.base import Actor, audit, domain_errors, emit, feature_on, idempotent, now, parse_uuid, section, text
 from app.services.document_service import document_dto
 from app.services.settings_service import tax_settings
 
@@ -98,6 +98,10 @@ def _price_order(session: Session, actor: Actor, data: dict[str, Any]):  # type:
             prow = product_rows.get(pid)
             if prow is None:
                 raise not_found("product")
+            category = catalog.category(prow.category_id)
+            if category is not None and not category.active:
+                # Hidden from the POS menu, so the server must not sell it either.
+                raise validation(f"{prow.name} is not available (its category is inactive)")
             product = catalog.to_domain_product(prow, actor.currency, links)
             resolved = product.resolve_selections(groups, selections)
             items.append(OrderItem.from_product(str(uuid.uuid4()), product, resolved, qty))
@@ -264,7 +268,7 @@ def cancel_order(session: Session, actor: Actor, order_id: str, data: dict[str, 
         inv, system = InventoryRepository(session), SystemRepository(session)
         at = now()
         with domain_errors():
-            plan = order.cancel(str(data.get("reason", "")), at, expected_version=data.get("expected_version"))
+            plan = order.cancel(text(data.get("reason", ""), "reason"), at, expected_version=data.get("expected_version"))
         locked = inv.lock_levels(actor.business_id, plan.keys)
         with domain_errors():
             movements = release_all(plan, {k: lvl for k, (_, lvl) in locked.items()}, order_id=order.id,

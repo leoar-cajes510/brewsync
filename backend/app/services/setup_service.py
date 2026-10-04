@@ -29,7 +29,7 @@ from app.models import (
     BusinessRow, DocumentSeriesRow, PermissionRow, RolePermissionRow, RoleRow, TerminalRow, UserRow,
 )
 from app.repositories.system_repository import SystemRepository
-from app.services.base import audit, domain_errors, now
+from app.services.base import audit, domain_errors, now, text
 from app.services.settings_service import save_initial, security_settings
 
 MIN_SETUP_TOKEN = 16
@@ -57,8 +57,8 @@ def _first_terminal(session: Session, system: SystemRepository, business_id: Any
     from app.repositories.staff_repository import StaffRepository
     from app.services.terminal_service import _issue_code, terminal_dto
     staff = StaffRepository(session)
-    code = str(data.get("code") or "REG-01").strip().upper()
-    name = str(data.get("name") or "Main Terminal").strip()
+    code = (text(data.get("code"), "code") or "REG-01").strip().upper()
+    name = (text(data.get("name"), "name") or "Main Terminal").strip()
     if not code or len(code) > 20 or not name or len(name) > 80:
         raise validation("first terminal code (≤ 20) and name (≤ 80) are required")
     row = staff.terminal_by_code(business_id, code, lock=True)
@@ -102,14 +102,14 @@ def complete(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     admin_in = payload.get("admin") or {}
     security_in = payload.get("security") or {}
     with domain_errors():
-        business = Business(id="new", name=str(business_in.get("name", "")),
-                            currency_code=str(business_in.get("currency_code", "")),
-                            timezone=str(business_in.get("timezone", "")),
-                            business_type=str(business_in.get("business_type", "")),
-                            address=str(business_in.get("address", "")), phone=str(business_in.get("phone", "")),
-                            email=str(business_in.get("email", "")))
+        business = Business(id="new", name=text(business_in.get("name"), "name"),
+                            currency_code=text(business_in.get("currency_code"), "currency_code"),
+                            timezone=text(business_in.get("timezone"), "timezone"),
+                            business_type=text(business_in.get("business_type"), "business_type"),
+                            address=text(business_in.get("address"), "address"), phone=text(business_in.get("phone"), "phone"),
+                            email=text(business_in.get("email"), "email"))
         _, _, lengths = security_settings(security_in)
-    password = str(admin_in.get("password", ""))
+    password = text(admin_in.get("password"), "password")
     if len(password) < lengths["min_password_length"]:
         raise validation(f"Admin password must have at least {lengths['min_password_length']} characters")
 
@@ -130,7 +130,7 @@ def complete(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
 
     with domain_errors():
         admin = User(id="new", code=f"STF-{system.next_value(biz.id, 'staff'):02d}",
-                     username=str(admin_in.get("username", "")).strip().lower(), full_name=str(admin_in.get("full_name", "")),
+                     username=text(admin_in.get("username"), "username").strip().lower(), full_name=text(admin_in.get("full_name"), "full_name"),
                      role=RoleKey.ADMIN, auth_method=AuthMethod.PASSWORD)
     admin_row = system.add(UserRow(business_id=biz.id, code=admin.code, username=admin.username,
                                    full_name=admin.full_name, role_id=roles[RoleKey.ADMIN].id,

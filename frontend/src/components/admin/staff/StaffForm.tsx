@@ -207,7 +207,7 @@ export default function StaffForm({ open, member, existingUsernames, onClose, on
           </div>
         )}
         <p className="staff-form__note staff-form__wide">
-          {member ? 'Username changes are not available yet (open decision Q-AUTH-5). Terminal assignment is an open decision (Q-TRM-6).' : 'The new user must change this temporary credential at first sign-in.'}
+          {member ? 'Username changes and terminal assignment are not available yet.' : 'The new user must change this temporary credential at first sign-in.'}
         </p>
       </form>
     </Modal>

@@ -24,6 +24,11 @@ class AdminCatalogTests(DbTestCase):
         self.assertEqual(self.error_code(dup), "CONFLICT")
         blank = self.call("PATCH", f"/categories/{ids['category']}", env["admin"], {"name": " "}, expect=422)
         self.assertEqual(self.error_code(blank), "VALIDATION_ERROR")
+        # A product in an inactive category is hidden on the POS, and the server refuses to sell it.
+        refused = self.call("POST", "/orders", env["admin"], {"order_type": "takeout",
+                            "lines": [{"product_id": ids["latte"], "quantity": 1}]}, key="inactive-cat", expect=422)
+        self.assertIn("category is inactive", refused.json()["error"]["message"])
+        self.assertEqual(self.scalar("SELECT count(*) FROM {s}.orders"), 0)
 
     def test_choice_group_edit_adds_updates_and_deactivates_options(self):
         env = self.bootstrap()
@@ -113,6 +118,64 @@ class AdminStaffAndExpenseTests(DbTestCase):
         self.assertNotIn("4321", str(reset))
         self.call("POST", "/auth/login", json={"username": "maria", "credential": "4321"}, device=env["device"],
                   expect=200)
+
+    def test_max_admins_applies_to_promotion_and_reactivation(self):
+        env = self.bootstrap()
+        admin = env["admin"]
+        # SETUP allows 2 Admins: owner + one more.
+        extra = self.call("POST", "/staff", admin, {"username": "second", "full_name": "Second Admin", "role": "admin",
+                                                   "auth_method": "password", "credential": "second-pass-1"},
+                          expect=201).json()
+        clerk = self.call("POST", "/staff", admin, {"username": "clerk", "full_name": "Clerk", "role": "cashier",
+                                                   "auth_method": "password", "credential": "clerk-pass-12"},
+                          expect=201).json()
+        r = self.call("PATCH", f"/staff/{clerk['id']}", admin, {"role": "admin"}, expect=409)
+        self.assertEqual(self.error_code(r), "LIMIT_REACHED")
+        self.assertEqual(self.scalar("SELECT r.key FROM {s}.users u JOIN {s}.roles r ON r.id = u.role_id "
+                                     "WHERE u.id = :id", id=clerk["id"]), "cashier")
+        self.call("POST", f"/staff/{extra['id']}/deactivate", admin, expect=200)
+        self.call("PATCH", f"/staff/{clerk['id']}", admin, {"role": "admin"}, expect=200)
+        r = self.call("POST", f"/staff/{extra['id']}/activate", admin, expect=409)
+        self.assertEqual(self.error_code(r), "LIMIT_REACHED")
+        self.assertEqual(self.scalar("SELECT status FROM {s}.users WHERE id = :id", id=extra["id"]), "inactive")
+
+    def test_ingredient_rename_is_audited_and_booleans_are_strict(self):
+        env = self.bootstrap()
+        admin = env["admin"]
+        ing = self.call("POST", "/ingredients", admin, {"code": "ING-01", "name": "Beans", "unit": "g", "unit_cost": "1.75",
+                        "initial_stock": "100", "low_stock_threshold": "10"}, expect=201).json()
+        r = self.call("POST", "/ingredients", admin, {"name": "Milk", "unit": "ml", "initial_stock": "1",
+                      "low_stock_threshold": "1"}, expect=422)  # a code is required, never stored empty
+        self.assertEqual(self.error_code(r), "VALIDATION_ERROR")
+        count = "SELECT count(*) FROM {s}.audit_logs WHERE action = 'ingredient.updated' AND entity_id = :id"
+        self.call("PATCH", f"/ingredients/{ing['id']}", admin, {"name": "Espresso Beans"}, expect=200)
+        self.assertEqual(self.scalar("SELECT name FROM {s}.ingredients WHERE id = :id", id=ing["id"]), "Espresso Beans")
+        self.assertEqual(self.scalar("SELECT before->>'name' || '>' || (after->>'name') FROM {s}.audit_logs "
+                                     "WHERE action = 'ingredient.updated' AND entity_id = :id", id=ing["id"]),
+                         "Beans>Espresso Beans")
+        self.call("PATCH", f"/ingredients/{ing['id']}", admin, {"name": "Espresso Beans", "unit_cost": "1.7500"}, expect=200)
+        self.assertEqual(self.scalar(count, id=ing["id"]), 1)  # no-op edit is not audited
+        # JSON booleans only: "false" is refused, never read as true.
+        for value in ("false", "true", "yes", 0):
+            r = self.call("PATCH", f"/ingredients/{ing['id']}", admin, {"active": value}, expect=422)
+            self.assertEqual(self.error_code(r), "VALIDATION_ERROR")
+        self.assertTrue(self.scalar("SELECT active FROM {s}.ingredients WHERE id = :id", id=ing["id"]))
+        self.call("PATCH", f"/ingredients/{ing['id']}", admin, {"active": None}, expect=200)  # null = unchanged
+        self.assertTrue(self.scalar("SELECT active FROM {s}.ingredients WHERE id = :id", id=ing["id"]))
+        self.call("PATCH", f"/ingredients/{ing['id']}", admin, {"active": False}, expect=200)
+        self.assertFalse(self.scalar("SELECT active FROM {s}.ingredients WHERE id = :id", id=ing["id"]))
+        g = self.call("POST", "/choice-groups", admin, {"name": "Size", "selection_type": "single", "required": "false",
+                      "min_select": 0, "max_select": 1, "options": [{"name": "Small"}]}, expect=422)
+        self.assertEqual(self.error_code(g), "VALIDATION_ERROR")
+        g = self.call("POST", "/choice-groups", admin, {"name": "Size", "selection_type": "single", "required": False,
+                      "min_select": 0, "max_select": 1, "options": [{"name": "Small"}]}, expect=201).json()
+        self.assertFalse(g["required"])
+        self.call("PATCH", f"/choice-groups/{g['id']}", admin, {"active": "false"}, expect=422)
+        self.assertTrue(self.scalar("SELECT active FROM {s}.choice_groups WHERE id = :id", id=g["id"]))
+        d = self.call("POST", "/discounts", admin, {"name": "Promo", "type": "percentage", "value": "10"}, expect=201).json()
+        self.call("PATCH", f"/discounts/{d['id']}", admin, {"active": "false"}, expect=422)
+        self.call("PATCH", f"/discounts/{d['id']}", admin, {"active": False}, expect=200)
+        self.assertFalse(self.scalar("SELECT active FROM {s}.discounts WHERE id = :id", id=d["id"]))
 
     def test_expense_edit_persists(self):
         env = self.bootstrap()

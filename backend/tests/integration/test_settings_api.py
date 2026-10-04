@@ -31,6 +31,62 @@ class SettingsTests(DbTestCase):
         self.assertEqual(self.error_code(r), "SETTINGS_REQUIRED")
 
 
+    def test_operational_settings_share_only_the_waiting_threshold(self):
+        env = self.bootstrap()
+        cashier = self.make_cashier(env["admin"], env["device"])
+        data = self.call("GET", "/settings/operational", cashier, expect=200).json()
+        self.assertEqual(data["staffing"]["data"], {"order_waiting_minutes": 10})
+        self.call("GET", "/settings/staffing", cashier, expect=403)
+
+
+    def test_request_shape_errors_use_the_error_envelope(self):
+        env = self.bootstrap()
+        r = self.call("POST", "/orders/quote", env["admin"], {"order_type": "takeout",
+                      "lines": [{"product_id": "x", "quantity": 1.5}]}, expect=422)
+        body = r.json()
+        self.assertEqual(body["error"]["code"], "VALIDATION_ERROR")
+        self.assertIn("quantity", body["error"]["message"])
+        self.assertNotIn("detail", body)
+        r = self.call("POST", "/auth/login", json={"username": "owner"}, expect=422)
+        self.assertNotIn("correct-horse", r.text)
+
+
+    def test_malformed_values_are_validation_errors_not_500(self):
+        env = self.bootstrap()
+        tax = {"enabled": True, "mode": "weird", "name": "VAT", "rate": "12"}
+        r = self.call("PUT", "/settings/tax", env["admin"], {"version": 1, "data": tax}, expect=422)
+        self.assertEqual(self.error_code(r), "VALIDATION_ERROR")
+        r = self.call("POST", "/expenses", env["admin"], {"description": "Milk", "category": "Ingredients",
+                      "amount": "100.005", "payment_method": "cash", "expense_date": "2026-01-02"}, expect=422)
+        self.assertEqual(self.error_code(r), "VALIDATION_ERROR")
+        self.assertEqual(self.scalar("SELECT count(*) FROM {s}.expenses"), 0)
+        ids = self.catalog(env["admin"])
+        for method, path, body in [("POST", "/discounts", {}), ("POST", "/choice-groups", {"name": "Size"}),
+                                   ("POST", "/choice-groups", {"name": "Size", "selection_type": "single", "options": ["x"]}),
+                                   ("PUT", f"/products/{ids['latte']}/recipe", {"lines": ["x"]})]:
+            r = self.call(method, path, env["admin"], body, expect=422)
+            self.assertEqual(self.error_code(r), "VALIDATION_ERROR", (path, r.text))
+        r = self.call("POST", "/categories", env["admin"], {"name": "Te\u0000a", "code_prefix": "TEA"}, expect=422)
+        self.assertEqual(self.error_code(r), "VALIDATION_ERROR")
+        self.call("GET", "/audit?entity_type=%00", env["admin"], expect=422)
+        # Non-text values are refused, never stored as "None" / "{'a': 1}".
+        for method, path, body in [("PATCH", "/auth/me", {"full_name": {"a": 1}}),
+                                   ("PATCH", f"/categories/{ids['category']}", {"name": None}),
+                                   ("POST", "/categories", {"name": ["Tea"], "code_prefix": "TEA"}),
+                                   ("POST", "/staff", {"username": 5, "full_name": "X", "role": "cashier",
+                                                       "auth_method": "pin", "credential": "1234"})]:
+            r = self.call(method, path, env["admin"], body, expect=422)
+            self.assertEqual(self.error_code(r), "VALIDATION_ERROR", (path, r.text))
+        disc = self.call("POST", "/discounts", env["admin"], {"name": "Promo", "type": "percentage", "value": "10"},
+                         expect=201).json()
+        self.call("PATCH", f"/discounts/{disc['id']}", env["admin"], {"name": None}, expect=422)
+        self.assertEqual(self.scalar("SELECT name FROM {s}.discounts WHERE id = :id", id=disc["id"]), "Promo")
+        self.assertEqual(self.scalar("SELECT full_name FROM {s}.users WHERE username = 'owner'"), "Owner Admin")
+        self.assertEqual(self.scalar("SELECT count(*) FROM {s}.categories WHERE name IN ('None', '')"), 0)
+        # PUT /recipe without "lines" is refused instead of emptying the recipe.
+        self.call("PUT", f"/products/{ids['latte']}/recipe", env["admin"], {"track_ingredients": False}, expect=422)
+
+
 class ArchiveTests(DbTestCase):
     def test_manual_archive_restore_and_cancelled_review(self):
         env = self.bootstrap()
@@ -50,6 +106,8 @@ class ArchiveTests(DbTestCase):
         cashier = self.make_cashier(env["admin"], env["device"])
         self.assertEqual(self.error_code(self.call("POST", f"/archive/{c['id']}/restore", cashier, expect=403)),
                          "PERMISSION_DENIED")
+        self.call("POST", "/archive", cashier, {"order_ids": [], "reason": "x"}, expect=403)
+        self.call("POST", "/archive", env["admin"], {"order_ids": [], "reason": "x"}, expect=422)
 
     def test_auto_archive_only_completed_orders(self):
         from app.services.archive_service import run_auto_archive

@@ -14,10 +14,12 @@ interface AuthState {
   user: MeDto | null;
   /** Why the last session ended, shown on the Login screen. */
   notice: string | null;
+  /** After a manual lock, Login shows this user pre-filled (R14.11). */
+  lockedUsername: string | null;
   error: string | null;
 }
 
-let state: AuthState = { phase: 'loading', user: null, notice: null, error: null };
+let state: AuthState = { phase: 'loading', user: null, notice: null, lockedUsername: null, error: null };
 const listeners = new Set<() => void>();
 
 function set(patch: Partial<AuthState>) {
@@ -79,7 +81,7 @@ export async function signIn(username: string, credential: string): Promise<MeDt
   const result = await auth.login(username, credential);
   tokenStore.set(result.token);
   const user = await auth.me();
-  set({ phase: 'signed-in', user, notice: null });
+  set({ phase: 'signed-in', user, notice: null, lockedUsername: null });
   return user;
 }
 
@@ -95,8 +97,9 @@ export async function signOut(kind: 'logout' | 'lock' = 'logout', notice?: strin
   } catch {
     /* the local session is cleared either way */
   }
+  const lockedUsername = kind === 'lock' ? (state.user?.username ?? null) : null;
   tokenStore.set(null);
-  set({ phase: 'signed-out', user: null, notice: notice ?? (kind === 'lock' ? 'Terminal locked.' : null) });
+  set({ phase: 'signed-out', user: null, lockedUsername, notice: notice ?? (kind === 'lock' ? 'Terminal locked.' : null) });
 }
 
 export function setupCompleted(notice = 'Setup complete. Sign in with the Admin account you just created.') {

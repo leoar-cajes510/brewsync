@@ -22,6 +22,7 @@ import { toApiOrderType } from '../../utils/apiMappers';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import IdentificationDialog from '../../components/pos/IdentificationDialog';
 import { usePreferenceSettings } from '../../stores/preferenceSettingsStore';
+import { useFeatureSettings } from '../../stores/featureSettingsStore';
 import '../../components/pos/pos.css';
 
 const ALL = 'all';
@@ -124,6 +125,7 @@ export default function POSPage() {
   const [orderType, setOrderType] = useState<OrderType>('dine-in');
   // Settings → Preferences (PREF-01): default order type for a new sale; confirm before removing a line.
   const { settings: prefs, loaded: prefsLoaded } = usePreferenceSettings();
+  const { flags } = useFeatureSettings();
   const PREF_TYPE: Record<string, OrderType> = { dineIn: 'dine-in', takeout: 'takeout', delivery: 'delivery' };
   const appliedDefault = useRef(false);
   useEffect(() => {
@@ -310,6 +312,8 @@ export default function POSPage() {
         orderNumber="New"
         orderType={orderType}
         onOrderTypeChange={setOrderType}
+        showOrderType={prefs.showOrderTypeAtCheckout}
+        discountsEnabled={flags.discounts}
         lines={lines}
         totals={totals}
         discountLabel={discount?.name ?? null}

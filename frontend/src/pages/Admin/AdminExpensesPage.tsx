@@ -24,7 +24,7 @@ const PAGE_SIZE = 10;
 type Period = 'all' | 'today' | 'week' | 'month' | 'last-month';
 
 /** Delete vs void of an expense is ⚠ OPEN (Q-EXP-1); the server exposes neither. */
-const DELETE_PENDING = 'Deleting or voiding an expense is not available yet — that policy is still an open decision (Q-EXP-1). Edit the record instead.';
+const DELETE_PENDING = 'Deleting or voiding an expense is not available yet — that policy has not been decided yet. Edit the record instead.';
 
 function fromDto(e: ExpenseDto, names: Map<string, string>): Expense {
   return {

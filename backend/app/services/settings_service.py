@@ -22,7 +22,7 @@ from app.domain.payment import CashRoundingMode, CashRoundingPolicy, MethodOptio
 from app.domain.settings import Feature, SecuritySettings, SettingsSection
 from app.domain.tax import TaxMode, TaxSettings
 from app.repositories.system_repository import SystemRepository
-from app.services.base import Actor, audit, domain_errors, emit
+from app.services.base import Actor, audit, domain_errors, emit, flag, text
 
 STAFFING_RANGES = {"max_admins": (1, 10), "max_staff": (1, 100), "max_terminals": (1, 25),
                    "low_stock_threshold": (0, 10000), "order_waiting_minutes": (1, 240)}
@@ -30,24 +30,24 @@ STAFFING_RANGES = {"max_admins": (1, 10), "max_staff": (1, 100), "max_terminals"
 
 # --- section → domain parsers (also used by other services) ----------------------------------------------
 def tax_settings(data: dict) -> TaxSettings:
-    return TaxSettings(enabled=bool(data.get("enabled")), mode=TaxMode(data.get("mode", "included")),
-                       name=str(data.get("name", "")),
+    return TaxSettings(enabled=flag(data.get("enabled"), "enabled"), mode=TaxMode(data.get("mode", "included")),
+                       name=text(data.get("name", ""), "name"),
                        rate=Decimal(str(data["rate"])) if data.get("rate") not in (None, "") else None,
-                       registration_number=str(data.get("registration_number", "")))
+                       registration_number=text(data.get("registration_number", ""), "registration_number"))
 
 
 def payment_settings(data: dict) -> PaymentSettings:
     options = {}
     for method, opts in (data.get("options") or {}).items():
         options[PaymentMethod(method)] = MethodOptions(
-            require_cash_received=bool(opts.get("require_cash_received", False)),
-            require_reference=bool(opts.get("require_reference", False)),
-            require_confirmation=bool(opts.get("require_confirmation", False)))
+            require_cash_received=flag(opts.get("require_cash_received"), "require_cash_received"),
+            require_reference=flag(opts.get("require_reference"), "require_reference"),
+            require_confirmation=flag(opts.get("require_confirmation"), "require_confirmation"))
     rounding = data.get("cash_rounding") or {}
     if "enabled" not in rounding:
         raise validation("payments.cash_rounding.enabled must be set explicitly (Q-PAY-2)")
     policy = CashRoundingPolicy(
-        enabled=bool(rounding["enabled"]),
+        enabled=flag(rounding["enabled"], "cash_rounding.enabled"),
         increment=Decimal(str(rounding["increment"])) if rounding.get("increment") not in (None, "") else None,
         mode=CashRoundingMode(rounding["mode"]) if rounding.get("mode") else None)
     return PaymentSettings(frozenset(PaymentMethod(m) for m in data.get("enabled_methods", [])), options, policy)
@@ -72,6 +72,13 @@ def security_settings(data: dict) -> tuple[SecuritySettings, CredentialPolicy, d
 def _validate(system: SystemRepository, business_id: Any, section: SettingsSection, data: dict) -> dict:
     if not isinstance(data, dict):
         raise validation("settings data must be an object")
+    try:
+        return _validate_section(system, business_id, section, data)
+    except (ValueError, KeyError, TypeError) as exc:  # e.g. an unknown enum value such as tax.mode
+        raise validation(f"invalid {section.value} settings: {exc}") from exc
+
+
+def _validate_section(system: SystemRepository, business_id: Any, section: SettingsSection, data: dict) -> dict:
     with domain_errors():
         if section is SettingsSection.TAX:
             tax_settings(data)
@@ -91,10 +98,10 @@ def _validate(system: SystemRepository, business_id: Any, section: SettingsSecti
                 if not isinstance(value, int) or not low <= value <= high:
                     raise validation(f"staffing.{key} must be an integer {low}–{high}")
         elif section is SettingsSection.BUSINESS:
-            if not str(data.get("name", "")).strip():
+            if not text(data.get("name", ""), "name").strip():
                 raise validation("business.name is required")
             for key, limit in (("name", 120), ("business_type", 60), ("address", 255), ("phone", 40), ("email", 120)):
-                if len(str(data.get(key) or "")) > limit:
+                if len(text(data.get(key), f"business.{key}")) > limit:
                     raise validation(f"business.{key} is longer than {limit} characters")
             current = _business_identity(system)
             for key in BUSINESS_FIXED:
@@ -172,7 +179,7 @@ def put_section(session: Session, actor: Actor, name: str, data: dict, expected_
         assert business is not None
         for key in BUSINESS_IDENTITY:
             if key in data:
-                setattr(business, key, str(data[key] or "").strip())
+                setattr(business, key, text(data[key], key).strip())
         session.flush()
     audit(system, actor, actor.business_id, "settings.changed", "settings", section.value,
           before={"version": current_version}, after={"version": row.version})
@@ -193,6 +200,7 @@ def save_initial(system: SystemRepository, business_id: Any, section: SettingsSe
 # offline or compliance data, and no permission beyond a valid session.
 OPERATIONAL_SECTIONS = (SettingsSection.FEATURES, SettingsSection.PAYMENTS, SettingsSection.BRANDING,
                         SettingsSection.TERMINOLOGY, SettingsSection.PREFERENCES)
+OPERATIONAL_STAFFING_KEYS = ("order_waiting_minutes",)
 
 
 def operational(session: Session, actor: Actor) -> dict:
@@ -202,4 +210,9 @@ def operational(session: Session, actor: Actor) -> dict:
         row = system.settings(actor.business_id, s.value)
         result[s.value] = {"section": s.value, "configured": row is not None, "version": row.version if row else 0,
                            "data": row.data if row else None}
+    # Staffing limits stay private; only the display threshold the Orders board needs is shared.
+    row = system.settings(actor.business_id, SettingsSection.STAFFING.value)
+    data = {k: row.data[k] for k in OPERATIONAL_STAFFING_KEYS if k in row.data} if row else None
+    result[SettingsSection.STAFFING.value] = {"section": SettingsSection.STAFFING.value, "configured": row is not None,
+                                              "version": row.version if row else 0, "data": data}
     return result

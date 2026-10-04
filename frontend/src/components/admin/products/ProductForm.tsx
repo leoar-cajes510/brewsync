@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import Button from '../../ui/Button';
 import Input from '../../ui/Input';
 import Modal from '../../ui/Modal';
@@ -6,6 +6,7 @@ import Select from '../../ui/Select';
 import Toggle from '../../ui/Toggle';
 import { errorMessage } from '../../../services/api';
 import { CODE_PREFIX_PATTERN } from '../../../services/productService';
+import { useStaffingSettings } from '../../../stores/staffingSettingsStore';
 import ProductImageUpload from './ProductImageUpload';
 import type { CatalogProduct, CatalogProductDraft } from '../../../types/product';
 
@@ -81,6 +82,12 @@ export default function ProductForm({ product, categories, choiceGroups, onCance
     choiceGroupIds: product?.choiceGroupIds ?? [],
   }));
   const [touched, setTouched] = useState(false);
+  // Settings → Staffing → Low Stock Threshold is the starting value for a NEW product (Q-INV-4: default
+  // only — each item's own threshold stays authoritative and editable).
+  const { settings: staffing, loaded: staffingLoaded } = useStaffingSettings();
+  useEffect(() => {
+    if (!isEdit && staffingLoaded) setForm((f) => (f.threshold === '' ? { ...f, threshold: String(staffing.lowStockThreshold) } : f));
+  }, [isEdit, staffingLoaded, staffing.lowStockThreshold]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -148,7 +155,7 @@ export default function ProductForm({ product, categories, choiceGroups, onCance
       >
         <div className="product-form__media">
           <ProductImageUpload value={form.image} onChange={(img) => set('image', img)} />
-          <p className="product-form__hint">Image storage is not connected yet (open decision Q-ARCH-2); the preview is not saved.</p>
+          <p className="product-form__hint">Product images are not stored yet; this comes in a later phase.</p>
         </div>
 
         <div className="product-form__fields">

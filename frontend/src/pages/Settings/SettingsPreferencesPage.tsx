@@ -27,6 +27,8 @@ interface Row {
   feature?: FeatureKey;
   /** Only adjustable while this preference is on. */
   dependsOn?: PreferenceToggleKey;
+  /** Saved, but nothing acts on it yet (sounds, alerts, live transport — Q-ARCH-3). */
+  inactive?: boolean;
 }
 
 const GROUPS: { key: string; title: string; icon: LucideIcon; rows: Row[] }[] = [
@@ -35,9 +37,9 @@ const GROUPS: { key: string; title: string; icon: LucideIcon; rows: Row[] }[] = 
     title: 'Interface & Sounds',
     icon: Volume2,
     rows: [
-      { key: 'interfaceSounds', label: 'Interface Sounds', description: 'Play subtle sounds for supported interface interactions.', feature: 'soundEffects' },
-      { key: 'paymentSound', label: 'Payment Success Sound', description: 'Play a chime when a payment is completed.', feature: 'soundEffects' },
-      { key: 'notifications', label: 'Notifications', description: 'Show on-screen notifications for supported events.' },
+      { key: 'interfaceSounds', label: 'Interface Sounds', description: 'Play subtle sounds for supported interface interactions.', feature: 'soundEffects', inactive: true },
+      { key: 'paymentSound', label: 'Payment Success Sound', description: 'Play a chime when a payment is completed.', feature: 'soundEffects', inactive: true },
+      { key: 'notifications', label: 'Notifications', description: 'Show on-screen notifications for supported events.', inactive: true },
     ],
   },
   {
@@ -45,7 +47,7 @@ const GROUPS: { key: string; title: string; icon: LucideIcon; rows: Row[] }[] = 
     title: 'Live System Behavior',
     icon: RefreshCw,
     rows: [
-      { key: 'liveUpdates', label: 'Live Updates', description: 'Update orders, stock, and other supported information in real time.', feature: 'liveUpdates' },
+      { key: 'liveUpdates', label: 'Live Updates', description: 'Update orders, stock, and other supported information in real time.', feature: 'liveUpdates', inactive: true },
       { key: 'autoRefresh', label: 'Auto Refresh', description: 'Refresh supported screens automatically without reloading the page.' },
     ],
   },
@@ -54,10 +56,10 @@ const GROUPS: { key: string; title: string; icon: LucideIcon; rows: Row[] }[] = 
     title: 'Notification Preferences',
     icon: Bell,
     rows: [
-      { key: 'newOrderAlerts', label: 'New Order Alerts', description: 'Notify staff when a new order is placed.', dependsOn: 'notifications', feature: 'orderAlerts' },
-      { key: 'orderWaitingAlerts', label: 'Order Waiting Alerts', description: 'Notify staff when an order passes the waiting threshold.', dependsOn: 'notifications', feature: 'orderAlerts' },
-      { key: 'lowStockAlerts', label: 'Low Stock Alerts', description: 'Notify staff when stock reaches the low stock threshold.', dependsOn: 'notifications', feature: 'lowStockAlerts' },
-      { key: 'paymentAlerts', label: 'Payment Alerts', description: 'Notify staff about completed or failed payments.', dependsOn: 'notifications' },
+      { key: 'newOrderAlerts', label: 'New Order Alerts', description: 'Notify staff when a new order is placed.', dependsOn: 'notifications', feature: 'orderAlerts', inactive: true },
+      { key: 'orderWaitingAlerts', label: 'Order Waiting Alerts', description: 'Notify staff when an order passes the waiting threshold.', dependsOn: 'notifications', feature: 'orderAlerts', inactive: true },
+      { key: 'lowStockAlerts', label: 'Low Stock Alerts', description: 'Notify staff when stock reaches the low stock threshold.', dependsOn: 'notifications', feature: 'lowStockAlerts', inactive: true },
+      { key: 'paymentAlerts', label: 'Payment Alerts', description: 'Notify staff about completed or failed payments.', dependsOn: 'notifications', inactive: true },
     ],
   },
   {
@@ -65,9 +67,6 @@ const GROUPS: { key: string; title: string; icon: LucideIcon; rows: Row[] }[] = 
     title: 'POS Behavior',
     icon: ShoppingCart,
     rows: [
-      { key: 'autoClearCompleted', label: 'Automatically Clear Completed Order', description: 'Start a fresh cart as soon as an order is completed.' },
-      { key: 'returnToPosAfterPayment', label: 'Return to POS After Completing Payment', description: 'Go back to the register screen after a payment is completed.' },
-      { key: 'confirmCancelOrder', label: 'Require Confirmation Before Canceling Order', description: 'Ask staff to confirm before an order is canceled.' },
       { key: 'confirmRemoveCartItem', label: 'Require Confirmation Before Removing Cart Item', description: 'Ask staff to confirm before an item is removed from the cart.' },
     ],
   },
@@ -113,13 +112,19 @@ export default function SettingsPreferencesPage() {
         <div>
           <span className="pf-row__label">
             {r.label}
-            {featureOff && (
-              <span className="pf-tag" title="This feature is turned off in Settings → Features">
-                Off in Features
+            {r.inactive ? (
+              <span className="pf-tag" title="This setting is saved, but BrewSync does not act on it yet.">
+                Not active yet
               </span>
+            ) : (
+              featureOff && (
+                <span className="pf-tag" title="This feature is turned off in Settings → Features">
+                  Off in Features
+                </span>
+              )
             )}
           </span>
-          <small>{disabled ? 'Turn on Notifications to change this.' : r.description}</small>
+          <small>{disabled ? 'Turn on Notifications to change this.' : r.description}{r.inactive && ' Not active yet.'}</small>
         </div>
         <Toggle checked={form[r.key]} disabled={disabled} onChange={(v) => set({ [r.key]: v })} label={r.label} />
       </li>
@@ -129,21 +134,16 @@ export default function SettingsPreferencesPage() {
   const sounds = [form.interfaceSounds && 'Interface', form.paymentSound && 'Payment'].filter(Boolean) as string[];
   const alertsOn = ALERT_KEYS.filter((k) => form[k]).length;
   const summary: { key: string; label: string; value: string; on: boolean }[] = [
-    { key: 'sounds', label: 'Sounds', value: sounds.length ? `On (${sounds.join(' & ')})` : 'Off', on: sounds.length > 0 },
-    { key: 'live', label: 'Live Updates', value: form.liveUpdates ? (form.autoRefresh ? 'On · Auto refresh' : 'On') : form.autoRefresh ? 'Off · Auto refresh on' : 'Off', on: form.liveUpdates },
-    { key: 'notifications', label: 'Notifications', value: form.notifications ? `On (${alertsOn} of ${ALERT_KEYS.length} alerts)` : 'Off', on: form.notifications },
+    { key: 'sounds', label: 'Sounds', value: `${sounds.length ? `On (${sounds.join(' & ')})` : 'Off'} · not active yet`, on: false },
+    { key: 'live', label: 'Live Updates', value: `Not active yet${form.autoRefresh ? ' · Auto refresh on' : ''}`, on: form.autoRefresh },
+    { key: 'notifications', label: 'Notifications', value: `${form.notifications ? `On (${alertsOn} of ${ALERT_KEYS.length} alerts)` : 'Off'} · not active yet`, on: false },
     { key: 'orderType', label: 'Default Order Type', value: orderTypeLabel(form.defaultOrderType), on: true },
-    {
-      key: 'afterPayment',
-      label: 'After Payment',
-      value: [form.autoClearCompleted && 'Clear order', form.returnToPosAfterPayment && 'Return to POS'].filter(Boolean).join(' & ') || 'Stay on screen',
-      on: form.autoClearCompleted || form.returnToPosAfterPayment,
-    },
     {
       key: 'confirm',
       label: 'Confirmations',
-      value: [form.confirmCancelOrder && 'Cancel order', form.confirmRemoveCartItem && 'Remove item'].filter(Boolean).join(' & ') || 'None',
-      on: form.confirmCancelOrder || form.confirmRemoveCartItem,
+      // Cancelling an order always asks for a reason (server rule); only cart-item removal is configurable.
+      value: form.confirmRemoveCartItem ? 'Remove item' : 'None',
+      on: form.confirmRemoveCartItem,
     },
   ];
 

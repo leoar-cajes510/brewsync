@@ -25,7 +25,7 @@ from app.domain.identity import AuthMethod, PermissionKey, RoleKey, SessionEndRe
 from app.models import SessionRow, TerminalRow, UserRow
 from app.repositories.staff_repository import StaffRepository
 from app.repositories.system_repository import SystemRepository
-from app.services.base import Actor, audit, emit, now, section
+from app.services.base import Actor, audit, emit, now, section, text
 from app.services.settings_service import security_settings
 from app.services.setup_service import require_completed
 
@@ -210,7 +210,7 @@ def update_me(session: Session, actor: Actor, data: dict[str, Any]) -> dict[str,
     staff = StaffRepository(session)
     row = staff.user(actor.user_id, lock=True)
     assert row is not None
-    name = str(data.get("full_name", "")).strip()
+    name = text(data.get("full_name", ""), "full_name").strip()
     if not name or len(name) > 120:
         raise AppError("VALIDATION_ERROR", 422, "full name is required (max 120 characters)")
     before = row.full_name

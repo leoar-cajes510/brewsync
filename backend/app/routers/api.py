@@ -7,7 +7,9 @@ from typing import Any, TypeVar
 
 from fastapi import Request
 from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import DataError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.exceptions import AppError
@@ -35,8 +37,11 @@ def session_factory() -> sessionmaker[Session]:
 
 def tx(fn: Callable[[Session], T]) -> T:
     """Run a use case in one database transaction (commit on success, rollback on error)."""
-    with unit_of_work(session_factory()) as session:
-        return fn(session)
+    try:
+        with unit_of_work(session_factory()) as session:
+            return fn(session)
+    except DataError as exc:  # a request value PostgreSQL cannot store (NUL byte, numeric overflow…) → 422, not 500
+        raise AppError("VALIDATION_ERROR", 422, "A value in the request cannot be stored (invalid character or out of range)") from exc
 
 
 def bearer(request: Request) -> str | None:
@@ -77,3 +82,14 @@ async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
 async def db_not_configured_handler(_: Request, exc: DatabaseNotConfigured) -> JSONResponse:
     return JSONResponse(status_code=503, content={"error": {"code": "DATABASE_NOT_CONFIGURED", "message": str(exc),
                                                             "details": {}}})
+
+
+async def request_validation_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
+    """Body/query shape errors use the same envelope as every other error (API.md §1: VALIDATION_ERROR 422).
+    Only field locations and messages are returned — never the submitted values (they may hold credentials)."""
+    fields = [{"field": ".".join(str(p) for p in e.get("loc", ()) if p != "body"), "message": e.get("msg", "")}
+              for e in exc.errors()]
+    first = fields[0] if fields else {"field": "", "message": "invalid request"}
+    message = f"{first['field']}: {first['message']}" if first["field"] else first["message"]
+    return JSONResponse(status_code=422, content={"error": {"code": "VALIDATION_ERROR", "message": message,
+                                                            "details": {"fields": fields}}})

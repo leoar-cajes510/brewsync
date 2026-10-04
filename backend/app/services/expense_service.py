@@ -10,13 +10,14 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError, not_found, validation
+from app.domain.errors import DomainError
 from app.domain.expense import Expense, ExpenseCategory, ExpensePaymentMethod, format_expense_code
 from app.domain.identity import PermissionKey
 from app.domain.money import Money
 from app.models import ExpenseRow
 from app.repositories.expense_repository import ExpenseRepository
 from app.repositories.system_repository import SystemRepository
-from app.services.base import Actor, audit, domain_errors, feature_on, now, parse_uuid
+from app.services.base import Actor, audit, domain_errors, feature_on, now, parse_uuid, text
 
 
 def expense_dto(r: ExpenseRow) -> dict[str, Any]:
@@ -37,13 +38,13 @@ def record_expense(session: Session, actor: Actor, data: dict[str, Any]) -> dict
         amount = Money.of(Decimal(str(data.get("amount"))), actor.currency)
         expense_date = date.fromisoformat(str(data.get("expense_date")))
         category, method = ExpenseCategory(data.get("category")), ExpensePaymentMethod(data.get("payment_method"))
-    except (InvalidOperation, ValueError, TypeError) as exc:
+    except (InvalidOperation, ValueError, TypeError, DomainError) as exc:  # DomainError: e.g. > 2 decimals
         raise validation("invalid amount, date, category or payment method") from exc
     code = format_expense_code(expense_date.year, system.next_value(actor.business_id, f"expense:{expense_date.year}"))
     with domain_errors():
-        expense = Expense(code=code, category=category, description=str(data.get("description", "")), amount=amount,
+        expense = Expense(code=code, category=category, description=text(data.get("description", ""), "description"), amount=amount,
                           expense_date=expense_date, payment_method=method, recorded_by=str(actor.user_id),
-                          created_at=now(), notes=str(data.get("notes", "")))
+                          created_at=now(), notes=text(data.get("notes", ""), "notes"))
         expense.validate_date(today)
     row = ExpenseRepository(session).add(ExpenseRow(
         business_id=actor.business_id, code=code, category=category.value, description=expense.description,
@@ -77,12 +78,12 @@ def update_expense(session: Session, actor: Actor, expense_id: str, data: dict[s
         expense_date = date.fromisoformat(str(data.get("expense_date", row.expense_date.isoformat())))
         category = ExpenseCategory(data.get("category", row.category))
         method = ExpensePaymentMethod(data.get("payment_method", row.payment_method))
-    except (InvalidOperation, ValueError, TypeError) as exc:
+    except (InvalidOperation, ValueError, TypeError, DomainError) as exc:  # DomainError: e.g. > 2 decimals
         raise validation("invalid amount, date, category or payment method") from exc
     with domain_errors():
-        expense = Expense(code=row.code, category=category, description=str(data.get("description", row.description)),
+        expense = Expense(code=row.code, category=category, description=text(data.get("description", row.description), "description"),
                           amount=amount, expense_date=expense_date, payment_method=method,
-                          recorded_by=str(row.recorded_by), created_at=now(), notes=str(data.get("notes", row.notes)))
+                          recorded_by=str(row.recorded_by), created_at=now(), notes=text(data.get("notes", row.notes), "notes"))
         expense.validate_date(today)
     row.category, row.description, row.amount = category.value, expense.description, amount.amount
     row.expense_date, row.payment_method, row.notes = expense_date, method.value, expense.notes

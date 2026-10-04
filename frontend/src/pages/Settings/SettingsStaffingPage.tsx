@@ -14,7 +14,7 @@ const FIELDS: Record<StaffingKey, { label: string; description: string }> = {
   maxAdmins: { label: 'Maximum Administrators', description: 'How many accounts can have the Admin role, with access to management areas and Settings.' },
   maxStaff: { label: 'Maximum Staff Accounts', description: 'How many cashier and team member logins can exist for your business.' },
   maxTerminals: { label: 'Maximum Active Terminals', description: 'Set the maximum number of terminals that can actively operate BrewSync.' },
-  lowStockThreshold: { label: 'Low Stock Threshold', description: 'Products and ingredients at or below this quantity are flagged as low stock.' },
+  lowStockThreshold: { label: 'Low Stock Threshold', description: 'Starting low-stock threshold for new products and ingredients. Each item keeps its own threshold, which you can change in Inventory.' },
   orderWaitingMinutes: { label: 'Order Waiting Threshold', description: 'Orders waiting longer than this are highlighted so staff can follow up.' },
 };
 

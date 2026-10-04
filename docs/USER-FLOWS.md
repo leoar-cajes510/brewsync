@@ -465,7 +465,7 @@ Q-INV-2 ★, Q-INV-3 ★ (DECIDED). BUSINESS-RULES §3, §4. ⚑Inventory.
    - An adjustment may **not** reduce on_hand below reserved: 409 **STOCK_RESERVED** ("n units are reserved by open orders").
    - An adjustment below 0 is rejected, **never clamped**.
    - To record a physical loss of reserved stock, first cancel or handle the affected orders (AR-11).
-4. **Edit threshold** ✱`inventory.adjust`. Which default applies to new items is ⚠ OPEN (Q-INV-4, C-4).
+4. **Edit threshold** ✱`inventory.adjust`. New items start with Staffing → Low Stock Threshold (Q-INV-4); each item's own threshold is authoritative.
 5. Changes run in one transaction with stock rows locked. Concurrent terminals never overwrite each other (SR-3).
 6. Real-time events: `stock.changed`, `stock.low` and `stock.out`. Alerts appear when Features → Low Stock Alerts and Preferences → Low Stock Alerts are on.
 
@@ -642,7 +642,7 @@ Q-SET-1 ★, Q-RCP-1, Q-RCP-2 ★, Q-PAY-2, Q-TAX-1/2/3, Q-AUTH-4 ★, Q-ARC-2/3
 | **Discounts** (rows) | Create/edit/deactivate discount definitions (name, type, amount, eligibility, min order, max discount). `requires_identification` + `identification_fields` have no UI yet ⚖ VR-2, VR-7. Senior Citizen/PWD are ordinary definitions; statutory treatment is a separate compliance rule ⚖ VR-1. The per-discount "Tax Handling" control is superseded for ordinary discounts (C-12) |
 | **Receipts** — **COMPLETE** | Display formatting only: **printed / digital format**; **receipt logo** (which logo prints ⚠ OPEN Q-RCP-4, C-2); **header toggles**: logo, business name, address, phone, email; **transaction-information toggles**: cashier, terminal, order number, reference, date/time, payment method, tax, discount, customer; **texts**: heading (≤ 32), thank-you (≤ 40), footer (≤ 80), small print (≤ 120). Compliance field locks override these display toggles when set (C-3 → Q-SET-2) |
 | **Staffing** | Max administrators (1–10), max staff accounts (1–100), max active terminals (1–25), low-stock threshold (0–10 000), order waiting threshold (1–240 min) |
-| **Preferences** (business-wide) | Interface and payment sounds, notifications, live updates and auto refresh, default order type, show order type at checkout, new-order / waiting / low-stock / payment alerts, auto-clear completed order, return to POS after payment, confirm cancel order, confirm remove cart item |
+| **Preferences** (business-wide) | Interface and payment sounds, notifications, live updates and auto refresh, default order type, show order type at checkout, new-order / waiting / low-stock / payment alerts, confirm remove cart item |
 
 **New backend sections — no screen yet** (added in a later UI phase; ✱`settings.security` / `settings.archiving` / `settings.offline` / `settings.compliance`, Admin-only until Q-SET-3; defaults ⚠ OPEN Q-SET-4)
 
