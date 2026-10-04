@@ -135,6 +135,11 @@
   color: var(--color-text);
 }
 
+/* Keep the shared chip active state (brand background + white text); the rule above would override it. */
+.filter-group .tabs__tab--active {
+  color: #fff;
+}
+
 .receipts__count {
   display: flex;
   align-items: center;
