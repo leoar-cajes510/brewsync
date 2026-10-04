@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, request } from './api';
 import type { CategoryDto, ChoiceGroupDto, DiscountDto, ProductDto, StockLevelDto, TaxClass } from '../types/api';
 
 export const listCategories = () => api.get<CategoryDto[]>('/categories');
@@ -32,6 +32,11 @@ export type ProductPatch = Partial<
 
 export const updateProduct = (id: string, patch: ProductPatch) => api.patch<ProductDto>(`/products/${id}`, patch);
 /** Hard delete only if never sold, reserved or moved (Q-DEL-1); otherwise 409 → deactivate instead. */
+/** Q-ARCH-2: the optimized image is stored by the server; the product keeps only its public URL. */
+export const uploadProductImage = (id: string, image: Blob) =>
+  request<ProductDto>('POST', `/products/${id}/image`, { file: image });
+export const deleteProductImage = (id: string) => api.delete<ProductDto>(`/products/${id}/image`);
+
 export const deleteProduct = (id: string) => api.delete<{ id: string; deleted: boolean }>(`/products/${id}`);
 
 export const listChoiceGroups = () => api.get<ChoiceGroupDto[]>('/choice-groups');

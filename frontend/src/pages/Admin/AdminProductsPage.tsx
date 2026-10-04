@@ -15,7 +15,7 @@ import { ActionFeedback } from '../../components/receipts/ReceiptPrinter';
 import type { CatalogProduct, CatalogProductDraft } from '../../types/product';
 import LoadingState from '../../components/ui/LoadingState';
 import { errorMessage } from '../../services/api';
-import { addProduct, duplicateProduct, loadCatalog, removeProduct, toggleProductActive, updateProduct, useCatalog } from '../../stores/catalogStore';
+import { addProduct, duplicateProduct, loadCatalog, removeProduct, saveProductImage, toggleProductActive, updateProduct, useCatalog } from '../../stores/catalogStore';
 import { createCategory, listChoiceGroups, updateCategory } from '../../services/productService';
 import '../../components/admin/products/products.css';
 
@@ -82,16 +82,31 @@ export default function AdminProductsPage() {
 
   // Errors propagate to the form, which keeps it open and shows the server message.
   const save = async (draft: CatalogProductDraft) => {
+    const { imageUpload, ...fields } = draft;
+    let productId: string;
+    let message: string;
     if (form?.mode === 'edit') {
       // Stock is owned by Inventory; editing a product never changes it.
-      const { stock: _stock, ...catalogFields } = draft;
+      const { stock: _stock, ...catalogFields } = fields;
       await updateProduct(form.product.id, catalogFields);
-      setFeedback(`Saved changes to ${draft.name}`);
+      productId = form.product.id;
+      message = `Saved changes to ${draft.name}`;
     } else {
-      const code = await addProduct(draft);
-      setFeedback(`${draft.name} added to the catalog as #${code}`);
+      const created = await addProduct(fields);
+      productId = created.id;
+      message = `${draft.name} added to the catalog as #${created.code}`;
     }
     setForm(null);
+    // The product is already saved; an image failure is reported without undoing it.
+    if (imageUpload !== undefined) {
+      try {
+        await saveProductImage(productId, imageUpload);
+      } catch (err) {
+        setActionError(`${message}, but the image was not ${imageUpload ? 'saved' : 'removed'}: ${errorMessage(err)}`);
+        return;
+      }
+    }
+    setFeedback(message);
   };
 
   const run = async (action: () => Promise<string | void>) => {

@@ -51,6 +51,12 @@ class Settings(BaseSettings):
     setup_token: str | None = None
     # Q-TRM-8 (approved option c): lifetime of the one-time first-terminal activation code.
     first_terminal_code_minutes: int = 15
+
+    # Q-ARCH-2 (decided: Supabase Storage). Server-only credentials for product image uploads; the
+    # service-role key must never be exposed to the browser (no VITE_ variable). Unset → uploads 503.
+    supabase_url: str | None = None
+    supabase_service_role_key: str | None = None
+    product_image_bucket: str = "product-images"
     auto_archive_interval_seconds: int = 900
 
 

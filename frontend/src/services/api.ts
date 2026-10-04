@@ -74,11 +74,14 @@ interface RequestOptions {
   anonymous?: boolean;
   /** Extra request headers (e.g. X-Setup-Token for the setup wizard). */
   headers?: Record<string, string>;
+  /** Binary body sent as-is with its own type (product image upload) instead of JSON. */
+  file?: Blob;
 }
 
 export async function request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
-  if (options.body !== undefined) headers['Content-Type'] = 'application/json';
+  if (options.file) headers['Content-Type'] = options.file.type;
+  else if (options.body !== undefined) headers['Content-Type'] = 'application/json';
   const token = tokenStore.get();
   if (token && !options.anonymous) headers.Authorization = `Bearer ${token}`;
   const device = deviceStore.get();
@@ -91,7 +94,7 @@ export async function request<T>(method: string, path: string, options: RequestO
     response = await fetch(`${BASE_URL}${path}`, {
       method,
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: options.file ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
     });
   } catch {
     throw new ApiError(0, 'NETWORK_ERROR', 'Cannot reach the BrewSync server. Check the connection and try again.');

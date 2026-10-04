@@ -60,7 +60,7 @@ export interface CatalogProduct {
   /** Low-stock threshold for a new tracked product (creation only). */
   lowStockThreshold?: number;
   description: string;
-  /** Image storage is OPEN (Q-ARCH-2): previews stay local and are not saved. */
+  /** Public image URL (Supabase Storage, Q-ARCH-2) or null for the placeholder. */
   image: string | null;
   /** Shown on the POS menu (Available) or hidden (Unavailable). */
   available: boolean;
@@ -75,4 +75,6 @@ export interface CatalogProduct {
  *  needed only when `category` names a new category. */
 export type CatalogProductDraft = Omit<CatalogProduct, 'id' | 'updatedAt' | 'categoryId' | 'sellable'> & {
   categoryPrefix?: string;
+  /** Image change saved after the product: a new optimized image, `null` to remove, omitted = unchanged. */
+  imageUpload?: Blob | null;
 };

@@ -82,6 +82,12 @@ export default function ProductForm({ product, categories, choiceGroups, onCance
     choiceGroupIds: product?.choiceGroupIds ?? [],
   }));
   const [touched, setTouched] = useState(false);
+  // Image change made in this form (undefined = unchanged); uploaded after the product is saved.
+  const [imageUpload, setImageUpload] = useState<Blob | null | undefined>(undefined);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  useEffect(() => () => {
+    if (localPreview) URL.revokeObjectURL(localPreview);
+  }, [localPreview]);
   // Settings → Staffing → Low Stock Threshold is the starting value for a NEW product (Q-INV-4: default
   // only — each item's own threshold stays authoritative and editable).
   const { settings: staffing, loaded: staffingLoaded } = useStaffingSettings();
@@ -114,6 +120,7 @@ export default function ProductForm({ product, categories, choiceGroups, onCance
         lowStockThreshold: !isEdit && form.trackUnits ? Number(form.threshold) : undefined,
         description: form.description.trim(),
         image: form.image,
+        ...(imageUpload !== undefined ? { imageUpload } : {}),
         available: form.available,
         active: product?.active ?? true,
         code: product?.code ?? '',
@@ -154,8 +161,15 @@ export default function ProductForm({ product, categories, choiceGroups, onCance
         }}
       >
         <div className="product-form__media">
-          <ProductImageUpload value={form.image} onChange={(img) => set('image', img)} />
-          <p className="product-form__hint">Product images are not stored yet; this comes in a later phase.</p>
+          <ProductImageUpload
+            value={form.image}
+            onChange={(img) => {
+              setLocalPreview(img?.preview ?? null);
+              setImageUpload(img ? img.blob : product?.image ? null : undefined);
+              set('image', img?.preview ?? null);
+            }}
+          />
+          <p className="product-form__hint">The image is saved with the product and shown in Admin and on the POS.</p>
         </div>
 
         <div className="product-form__fields">

@@ -128,7 +128,7 @@ def create_product(session: Session, actor: Actor, data: dict[str, Any]) -> dict
         product = Product(id="new", code=code, name=text(data.get("name", ""), "name"),
                           category_id=str(category_id), price=Money.of(_dec(data.get("price"), "price"), actor.currency),
                           tax_class=tax_class, description=text(data.get("description", ""), "description"),
-                          image_ref=data.get("image_url"), available=flag(data.get("available"), "available", True),
+                          image_ref=None, available=flag(data.get("available"), "available", True),
                           active=True, track_units=flag(data.get("track_units"), "track_units", False),
                           track_ingredients=flag(data.get("track_ingredients"), "track_ingredients", False))
     row = ProductRow(business_id=actor.business_id, code=product.code, name=product.name,

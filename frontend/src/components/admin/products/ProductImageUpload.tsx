@@ -1,37 +1,34 @@
 import { useRef, useState } from 'react';
 import { ImagePlus, RefreshCw, Trash2 } from 'lucide-react';
 import Button from '../../ui/Button';
-
-const MAX_BYTES = 5 * 1024 * 1024;
+import { optimizeProductImage, type OptimizedImage } from './productImage';
 
 interface ProductImageUploadProps {
+  /** Current preview: the saved public URL or a local object URL for a newly picked image. */
   value: string | null;
-  onChange: (dataUrl: string | null) => void;
+  /** A newly optimized image, or null when the image is removed. Saved with the product. */
+  onChange: (image: OptimizedImage | null) => void;
 }
 
-// Local-only preview (data URL in memory). Real image storage comes later.
+// Picks an image, optimizes it in the browser (≤ 800×800 WEBP) and hands it to the form; the form
+// uploads it to POST /products/{id}/image once the product exists (Q-ARCH-2).
 export default function ProductImageUpload({ value, onChange }: ProductImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const readFile = (file: File | undefined) => {
+  const readFile = async (file: File | undefined) => {
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setError('Please choose an image file (PNG, JPG, WEBP).');
-      return;
-    }
-    if (file.size > MAX_BYTES) {
-      setError('Image must be 5 MB or smaller.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
+    setBusy(true);
+    try {
+      onChange(await optimizeProductImage(file));
       setError(null);
-      onChange(typeof reader.result === 'string' ? reader.result : null);
-    };
-    reader.onerror = () => setError('Could not read that file. Try another image.');
-    reader.readAsDataURL(file);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not read that file. Try another image.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const pick = () => inputRef.current?.click();
@@ -49,25 +46,25 @@ export default function ProductImageUpload({ value, onChange }: ProductImageUplo
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);
+          void readFile(e.dataTransfer.files?.[0]);
         }}
       >
         {value ? (
           <img src={value} alt="Product preview" className="image-upload__preview" />
         ) : (
-          // Image storage is not connected yet (Q-ARCH-2): nothing picked here would be saved.
-          <button type="button" className="image-upload__empty" disabled title="Available in a later phase">
+          <button type="button" className="image-upload__empty" onClick={pick} disabled={busy}>
             <ImagePlus size={26} />
-            <strong>Product images</strong>
-            <span>Available in a later phase — images are not stored yet</span>
+            <strong>{busy ? 'Optimizing…' : 'Add product image'}</strong>
+            <span>PNG, JPG or WEBP · up to 10 MB · resized to 800×800</span>
           </button>
         )}
       </div>
       {value && (
         <div className="image-upload__actions">
-          <Button size="sm" icon={<RefreshCw size={13} />} onClick={pick}>
-            Replace
+          <Button size="sm" icon={<RefreshCw size={13} />} onClick={pick} disabled={busy}>
+            {busy ? 'Optimizing…' : 'Replace'}
           </Button>
-          <Button size="sm" icon={<Trash2 size={13} />} onClick={() => onChange(null)}>
+          <Button size="sm" icon={<Trash2 size={13} />} onClick={() => onChange(null)} disabled={busy}>
             Remove
           </Button>
         </div>
@@ -76,11 +73,11 @@ export default function ProductImageUpload({ value, onChange }: ProductImageUplo
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/png,image/jpeg,image/webp"
         hidden
         data-testid="product-image-input"
         onChange={(e) => {
-          readFile(e.target.files?.[0]);
+          void readFile(e.target.files?.[0]);
           e.target.value = '';
         }}
       />

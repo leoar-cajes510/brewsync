@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Body, Query, Request
+from starlette.concurrency import run_in_threadpool
 
 from app.core.exceptions import AppError
 from app.domain.inventory import SubjectType
@@ -14,7 +15,7 @@ from app.schemas.requests import (
 )
 from app.services import (
     analytics_service, archive_service, document_service, expense_service, inventory_service, order_service, payment_service,
-    pos_service, product_service, refund_service,
+    pos_service, product_image_service, product_service, refund_service, storage_service,
 )
 
 router = APIRouter(prefix="/api/v1")
@@ -49,6 +50,35 @@ def create_product(request: Request, body: dict[str, Any] = Body(...)):  # type:
 @router.delete("/products/{product_id}", tags=["catalog"])
 def delete_product(product_id: str, request: Request):  # type: ignore[no-untyped-def]
     return respond(authed(request, lambda s, a: product_service.delete_product(s, a, product_id)))
+
+
+@router.post("/products/{product_id}/image", tags=["catalog"])
+async def upload_product_image(product_id: str, request: Request):  # type: ignore[no-untyped-def]
+    """Raw image body (Content-Type image/png|jpeg|webp, ≤ 2 MB) → object storage; the product keeps
+    only the public URL (Q-ARCH-2). The previous object is deleted after the new URL committed."""
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > product_image_service.MAX_IMAGE_BYTES:
+        raise AppError("PAYLOAD_TOO_LARGE", 413, "The image must be 2 MB or smaller after optimization.")
+    data = await request.body()
+    uploaded: list[str] = []
+    try:
+        result, previous = await run_in_threadpool(authed, request, lambda s, a: product_image_service.set_image(
+            s, a, product_id, data, request.headers.get("content-type"), storage_service.get_storage, uploaded))
+    except Exception:
+        for path in uploaded:  # the database kept the old URL: the new object must not linger
+            storage_service.delete_quietly(storage_service.get_storage(), path)
+        raise
+    storage_service.delete_quietly(storage_service.get_storage(), previous)
+    return respond(result)
+
+
+@router.delete("/products/{product_id}/image", tags=["catalog"])
+def delete_product_image(product_id: str, request: Request):  # type: ignore[no-untyped-def]
+    result, previous = authed(request, lambda s, a: product_image_service.clear_image(
+        s, a, product_id, storage_service.get_storage))
+    if previous:
+        storage_service.delete_quietly(storage_service.get_storage(), previous)
+    return respond(result)
 
 
 @router.patch("/products/{product_id}", tags=["catalog"])

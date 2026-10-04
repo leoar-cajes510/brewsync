@@ -119,7 +119,7 @@ async function ensureCategory(name: string, codePrefix?: string): Promise<string
 /* ---------------------------- Products ---------------------------- */
 
 /** Creates the product; resolves to the server-generated code. */
-export async function addProduct(draft: CatalogProductDraft): Promise<string> {
+export async function addProduct(draft: CatalogProductDraft): Promise<{ id: string; code: string }> {
   if (!draft.taxClass) throw new Error('Choose whether the product is taxable.');
   const categoryId = await ensureCategory(draft.category, draft.categoryPrefix);
   const created = await products.createProduct({
@@ -134,7 +134,14 @@ export async function addProduct(draft: CatalogProductDraft): Promise<string> {
     ...(draft.trackUnits ? { initial_stock: draft.stock, low_stock_threshold: draft.lowStockThreshold } : {}),
   });
   await loadCatalog();
-  return created.code;
+  return { id: created.id, code: created.code };
+}
+
+/** Saves an image change for an existing product: a Blob uploads (replacing any previous image), `null` removes it. */
+export async function saveProductImage(id: string, image: Blob | null): Promise<void> {
+  if (image) await products.uploadProductImage(id, image);
+  else await products.deleteProductImage(id);
+  await loadCatalog();
 }
 
 /** Edits catalog fields only; stock is owned by Inventory and never changed here. The code is never
@@ -156,7 +163,7 @@ export async function updateProduct(id: string, draft: Omit<CatalogProductDraft,
 
 /** The copy gets a fresh generated code from its category (e.g. COF-007 → COF-008), never "-COPY". */
 export async function duplicateProduct(source: CatalogProduct): Promise<CatalogProduct | undefined> {
-  const code = await addProduct({
+  const { code } = await addProduct({
     ...source,
     name: `${source.name} (Copy)`,
     stock: 0,

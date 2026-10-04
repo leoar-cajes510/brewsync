@@ -482,7 +482,7 @@ The neutral term is **sales document** (UI label "Receipt"). "Official Receipt" 
 ### Q-ARCH-2 File/image storage
 - **Why it matters:** Product images, business logo and receipt logo need storage.
 - **Options:** (a) Object storage (e.g. Supabase Storage/S3-compatible). (b) Backend filesystem. (c) Database blobs.
-- **Decision:** ⚠ OPEN
+- **Decision:** ✅ DECIDED — (a) **Supabase Storage** for product images. Public-read bucket `product-images`; objects at `{business_id}/{product_id}/{uuid}.{ext}` (new UUID per upload, so caches never serve a stale image). `products.image_url` stores only the public URL — no binary/base64 in PostgreSQL. Uploads go **through the backend** (`POST /products/{id}/image`, ✱products.edit) using a server-only service-role key (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PRODUCT_IMAGE_BUCKET`; never a `VITE_` variable); the bucket has no client write policies. The browser downsizes to ≤ 800×800 WEBP (q≈0.85, transparency kept); the server re-validates type, magic bytes and size (PNG/JPEG/WEBP ≤ 2 MB; SVG/HTML rejected). Replacing deletes the previous object after the new URL committed; `DELETE /products/{id}/image` clears the URL and removes the object. The business/receipt logo keeps its existing settings-stored implementation for now.
 
 ### Q-ARCH-3 ★ Real-time transport
 - **Why it matters:** Real-time synchronization while online is already required (SR-1); only the **transport** is open. Events are written to the `domain_events` outbox in the same transaction, published after commit, carry a per-business `sequence`, and are permission-filtered with minimal payloads (AR-16).
@@ -554,8 +554,8 @@ Where the approved wording needed interpretation to be implementable, the interp
 
 ## Summary
 
-- **Decided: 30** — Q-ORD-1, Q-INV-1, Q-INV-2, Q-INV-3, Q-PAY-1, Q-PAY-2, Q-REF-4, Q-REF-1, Q-DSC-1, Q-DSC-2, Q-DSC-3, Q-TAX-1, Q-TAX-2, Q-TAX-3, Q-RCP-1, Q-RCP-2, Q-ARC-1, Q-ARC-4, Q-ARC-2, Q-ARC-3, Q-DEL-1, Q-AUTH-1, Q-AUTH-2, Q-AUTH-4, Q-TRM-1, Q-TRM-2, Q-TRM-3, Q-TRM-4, Q-TRM-5, Q-SET-1.
-- **Open: 39** — Q-ORD-2, Q-ORD-3, Q-ORD-4, Q-ORD-5, Q-ORD-6, Q-ING-2, Q-ING-3, Q-ING-4, Q-PAY-3, Q-PAY-4, Q-REF-2, Q-REF-3, Q-REF-5, Q-CAN-1, Q-DSC-4, Q-RCP-3, Q-RCP-4, Q-RCP-5, Q-ARC-5, Q-EXP-1, Q-EXP-2, Q-AUTH-3, Q-AUTH-5, Q-AUTH-6, Q-AUTH-7, Q-AUTH-8, Q-TRM-6, Q-TRM-7, Q-TRM-8, Q-SET-2, Q-SET-3, Q-SET-4, Q-FEAT-1, Q-FEAT-2, Q-BUS-1, Q-ARCH-1, Q-ARCH-2, Q-ARCH-3, Q-ARCH-4.
+- **Decided: 31** — Q-ARCH-2, Q-ORD-1, Q-INV-1, Q-INV-2, Q-INV-3, Q-PAY-1, Q-PAY-2, Q-REF-4, Q-REF-1, Q-DSC-1, Q-DSC-2, Q-DSC-3, Q-TAX-1, Q-TAX-2, Q-TAX-3, Q-RCP-1, Q-RCP-2, Q-ARC-1, Q-ARC-4, Q-ARC-2, Q-ARC-3, Q-DEL-1, Q-AUTH-1, Q-AUTH-2, Q-AUTH-4, Q-TRM-1, Q-TRM-2, Q-TRM-3, Q-TRM-4, Q-TRM-5, Q-SET-1.
+- **Open: 38** — Q-ORD-2, Q-ORD-3, Q-ORD-4, Q-ORD-5, Q-ORD-6, Q-ING-2, Q-ING-3, Q-ING-4, Q-PAY-3, Q-PAY-4, Q-REF-2, Q-REF-3, Q-REF-5, Q-CAN-1, Q-DSC-4, Q-RCP-3, Q-RCP-4, Q-RCP-5, Q-ARC-5, Q-EXP-1, Q-EXP-2, Q-AUTH-3, Q-AUTH-5, Q-AUTH-6, Q-AUTH-7, Q-AUTH-8, Q-TRM-6, Q-TRM-7, Q-TRM-8, Q-SET-2, Q-SET-3, Q-SET-4, Q-FEAT-1, Q-FEAT-2, Q-BUS-1, Q-ARCH-1, Q-ARCH-3, Q-ARCH-4.
   - **★ Blocking open: 12** — Q-PAY-3, Q-REF-2, Q-REF-5, Q-CAN-1, Q-RCP-5, Q-AUTH-7, Q-AUTH-8, Q-TRM-7, Q-TRM-8, Q-SET-4, Q-ARCH-1, Q-ARCH-3.
   - **⚖ Open: 5** — Q-ORD-5 (VR-7), Q-REF-2 (VR-8), Q-RCP-3 (VR-3), Q-RCP-5 (VR-3), Q-ARC-5 (VR-6, VR-7).
 - **Approved system rules: 11** (SR-1 … SR-11). **Verification items: 8** (VR-1 … VR-8). **Recorded interpretations: 14** (I-1 … I-14).
