@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, TypeVar
 
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError, from_domain, permission_denied, settings_required, validation
@@ -122,6 +123,12 @@ def idempotent(session: Session, business_id: uuid.UUID, scope: str, key: str | 
         raise AppError("VALIDATION_ERROR", 422, "Idempotency-Key header is required (≤ 80 characters)")
     system = SystemRepository(session)
     digest = request_hash(payload)
+    if session.get_bind().dialect.name == "postgresql":
+        # Serialize concurrent requests with the same key (double-click, network retry): the second
+        # waits for the first transaction, then sees its stored response instead of running again.
+        # Transaction-scoped, so it is safe behind Supabase's transaction pooler.
+        session.execute(sql_text("select pg_advisory_xact_lock(hashtextextended(:k, 0))"),
+                        {"k": f"{business_id}|{scope}|{key}"})
     existing = system.idempotency(business_id, scope, key)
     if existing is not None:
         if existing.request_hash != digest:

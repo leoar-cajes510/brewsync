@@ -221,12 +221,29 @@ export interface OrderDto {
   refunds: { id: string; kind: string; amount: Money; reason: string }[];
 }
 
+/** Server availability of an exact cart/configuration (same rule as order creation). */
+export interface AvailabilityDto {
+  ok: boolean;
+  issues: { code: string; product_id: string | null; message: string }[];
+  shortfalls: { subject_type: string; subject_id: string; name: string; unit: string; required: string; available: string; message: string }[];
+  lines: { index: number; product_id: string; product_name: string; available: boolean; reasons: string[] }[];
+  requirements: { name: string; unit: string; required: string; available: string; status: StockStatusDto }[];
+}
+
+/** Per product, default configuration, quantity 1 (POS menu). */
+export interface MenuAvailabilityDto {
+  sellable: boolean;
+  reasons: string[];
+  low_stock: string[];
+}
+
 export interface QuoteDto {
   subtotal: Money;
   discount_total: Money;
   tax_amount: Money;
   net_amount: Money;
   total: Money;
+  availability?: AvailabilityDto;
 }
 
 export interface PaymentResultDto extends OrderDto {
@@ -301,6 +318,9 @@ export interface StockMovementDto {
   reference_id: string | null;
   actor_id: string | null;
   created_at: string;
+  supplier?: string | null;
+  counted_quantity?: string | null;
+  system_quantity?: string | null;
 }
 
 export type IngredientUnitDto = 'g' | 'kg' | 'ml' | 'L' | 'pcs';
@@ -315,6 +335,10 @@ export interface IngredientDto {
   notes: string;
   active: boolean;
   stock: StockLevelDto | null;
+  /** Active recipe-deducting products that can consume this ingredient. */
+  used_by?: string[];
+  warnings?: string[];
+  affected_products?: string[];
 }
 
 export interface RecipeDto {

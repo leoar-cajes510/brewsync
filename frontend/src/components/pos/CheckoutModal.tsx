@@ -6,8 +6,8 @@ import Modal from '../ui/Modal';
 import PaymentSelector, { paymentLabel } from './PaymentSelector';
 import type { PaymentMethod } from '../../types/payment';
 import type { OrderDto, PaymentResultDto } from '../../types/api';
-import { errorMessage, newIdempotencyKey } from '../../services/api';
-import { recordPayment } from '../../services/paymentService';
+import { errorMessage, isUnknownOutcome, newIdempotencyKey } from '../../services/api';
+import { recordPayment, type PaymentInput } from '../../services/paymentService';
 import { toApiMethod } from '../../utils/apiMappers';
 import { formatPeso } from '../../utils/currency';
 
@@ -36,8 +36,13 @@ function CheckoutBody({ order: initial, onClose, onPaid }: Omit<CheckoutModalPro
   const [result, setResult] = useState<PaymentResultDto | null>(null);
   // One key per payment attempt: a retry of the same request is replayed, never duplicated.
   const attemptKey = useRef<string | null>(null);
+  // After a timeout the payment may already be recorded: the form is frozen and the next press
+  // re-sends the identical request with the same key (replayed by the server, never doubled).
+  const lastInput = useRef<PaymentInput | null>(null);
+  const [uncertain, setUncertain] = useState(false);
 
   const touch = <T,>(setter: (v: T) => void) => (v: T) => {
+    if (uncertain) return;
     attemptKey.current = null;
     setter(v);
   };
@@ -53,18 +58,18 @@ function CheckoutBody({ order: initial, onClose, onPaid }: Omit<CheckoutModalPro
     attemptKey.current ??= newIdempotencyKey();
     setSubmitting(true);
     setError(null);
+    const input: PaymentInput = uncertain && lastInput.current ? lastInput.current : {
+      method: toApiMethod(method),
+      amount: amountValue.toFixed(2),
+      ...(method === 'cash' && tendered.trim() ? { tendered: tenderedValue.toFixed(2) } : {}),
+      ...(method !== 'cash' && reference.trim() ? { reference: reference.trim() } : {}),
+    };
+    lastInput.current = input;
     try {
-      const paid = await recordPayment(
-        order.id,
-        {
-          method: toApiMethod(method),
-          amount: amountValue.toFixed(2),
-          ...(method === 'cash' && tendered.trim() ? { tendered: tenderedValue.toFixed(2) } : {}),
-          ...(method !== 'cash' && reference.trim() ? { reference: reference.trim() } : {}),
-        },
-        attemptKey.current,
-      );
+      const paid = await recordPayment(order.id, input, attemptKey.current);
       attemptKey.current = null;
+      lastInput.current = null;
+      setUncertain(false);
       setOrder(paid);
       onPaid(paid);
       setResult(paid);
@@ -72,7 +77,15 @@ function CheckoutBody({ order: initial, onClose, onPaid }: Omit<CheckoutModalPro
       setTendered('');
       setReference('');
     } catch (err) {
-      setError(errorMessage(err));
+      if (isUnknownOutcome(err)) {
+        setUncertain(true);
+        setError('No answer from the server — this payment may already be recorded. Press Confirm again to check; it will not be charged twice.');
+      } else {
+        attemptKey.current = null;
+        lastInput.current = null;
+        setUncertain(false);
+        setError(errorMessage(err));
+      }
     } finally {
       setSubmitting(false);
     }

@@ -82,6 +82,9 @@ class OrderItemRow(Base):
     quantity: Mapped[int] = mapped_column(Integer)
     line_total: Mapped[Decimal] = money()
     discount_allocation: Mapped[Decimal] = money()
+    # Frozen at creation (0004): per-unit ingredient use + unit cost then; NULL on older orders.
+    cost_snapshot: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    category_name: Mapped[str | None] = text(80, nullable=True)
 
 
 class OrderItemChoiceRow(Base):

@@ -1,5 +1,5 @@
 import { api, request } from './api';
-import type { CategoryDto, ChoiceEffectDto, ChoiceGroupDto, DiscountDto, ProductDto, StockLevelDto, TaxClass } from '../types/api';
+import type { CategoryDto, ChoiceEffectDto, ChoiceGroupDto, DiscountDto, MenuAvailabilityDto, ProductDto, StockLevelDto, TaxClass } from '../types/api';
 
 export const listCategories = () => api.get<CategoryDto[]>('/categories');
 export const createCategory = (name: string, codePrefix: string) =>
@@ -51,6 +51,7 @@ export interface PosMenuDto {
   choice_groups: ChoiceGroupDto[];
   discounts: DiscountDto[];
   stock: StockLevelDto[];
+  availability?: Record<string, MenuAvailabilityDto>;
 }
 export const getPosMenu = () => api.get<PosMenuDto>('/pos/menu');
 

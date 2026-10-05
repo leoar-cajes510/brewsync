@@ -39,6 +39,10 @@ interface CartPanelProps {
   onOpenDiscount: () => void;
   onClearDiscount: () => void;
   onCharge: () => void;
+  /** The server says the cart cannot be made now (stock/recipe); Place Order is disabled. */
+  blocked?: boolean;
+  /** Replaces the Place Order label (e.g. "Check order" while a submission is unresolved). */
+  chargeLabel?: string;
 }
 
 const orderTypes = [
@@ -66,6 +70,8 @@ export default function CartPanel({
   onOpenDiscount,
   onClearDiscount,
   onCharge,
+  blocked = false,
+  chargeLabel,
 }: CartPanelProps) {
   const empty = lines.length === 0;
 
@@ -142,7 +148,7 @@ export default function CartPanel({
         <div className="cart-panel__due">
           <div>
             <span className={`cart-panel__ready ${empty ? 'cart-panel__ready--idle' : ''}`}>
-              <span className="status-dot" /> {empty ? 'Awaiting Items' : pricing === 'loading' ? 'Calculating…' : pricing === 'error' ? 'Totals unavailable' : 'Ready to Place'}
+              <span className="status-dot" /> {empty ? 'Awaiting Items' : pricing === 'loading' ? 'Calculating…' : pricing === 'error' ? 'Totals unavailable' : blocked ? 'Unavailable' : 'Ready to Place'}
             </span>
             <span className="cart-panel__due-label">Total Due</span>
           </div>
@@ -159,10 +165,10 @@ export default function CartPanel({
           size="lg"
           block
           icon={<Banknote size={20} />}
-          disabled={empty || submitting || pricing === 'loading'}
+          disabled={chargeLabel ? submitting : empty || submitting || pricing !== 'ready' || blocked}
           onClick={onCharge}
         >
-          {submitting ? 'Placing Order…' : `Place Order · ${formatPeso(totals.total)}`}
+          {submitting ? (chargeLabel ? 'Checking…' : 'Placing Order…') : chargeLabel ?? `Place Order · ${formatPeso(totals.total)}`}
         </Button>
         <div className="cart-panel__secondary">
           <Button icon={<Split size={15} />} disabled title="Available in a later phase">

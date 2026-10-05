@@ -36,6 +36,10 @@ export interface Product {
   tracked?: boolean;
   /** Low-stock threshold from the product's stock level. */
   lowStockThreshold?: number;
+  /** Server reasons the default configuration cannot be sold now (e.g. "Coffee Beans: 18 g needed, 10 g available"). */
+  unavailableReasons?: string[];
+  /** Ingredients at/below their low-stock threshold (still sellable). */
+  lowIngredients?: string[];
   image: string;
   choiceGroups: ChoiceGroup[];
 }

@@ -9,7 +9,7 @@ class SchemaTests(DbTestCase):
     def test_migration_created_all_tables_and_constraints(self):
         tables = self.scalar("select count(*) from information_schema.tables where table_schema=:s", s=SCHEMA)
         self.assertEqual(tables, 41)  # 40 + alembic_version
-        self.assertEqual(self.scalar("select version_num from {s}.alembic_version"), "0003_choice_option_effects")
+        self.assertEqual(self.scalar("select version_num from {s}.alembic_version"), "0004_hardening_snapshots_ledger")
         checks = self.scalar("select count(*) from information_schema.check_constraints c join "
                              "information_schema.table_constraints t on t.constraint_name=c.constraint_name "
                              "where t.table_schema=:s and t.constraint_type='CHECK' and t.table_name='stock_levels'",

@@ -17,4 +17,7 @@ export const activateTerminal = (terminalCode: string, activationCode: string) =
 export const resetTerminalActivation = (id: string, activationCodeMinutes: number) =>
   api.post<TerminalRegistered>(`/terminals/${id}/reset-activation`, { activation_code_minutes: activationCodeMinutes });
 export const deactivateTerminal = (id: string) => api.post<TerminalDto>(`/terminals/${id}/deactivate`, {});
+
+/** Permanent: a lost, stolen or retired device can never be re-activated (register a new terminal). */
+export const revokeTerminal = (id: string, reason: string) => api.post<TerminalDto>(`/terminals/${id}/revoke`, { reason });
 export const renameTerminal = (id: string, name: string) => api.patch<TerminalDto>(`/terminals/${id}`, { name });

@@ -3,9 +3,11 @@ and expenses. The Admin UI aggregates (KPIs, trend, hourly, splits, products, ex
 from this feed, so nothing is simulated in the browser.
 
 Sales = completed orders (archived or not) whose ``completed_at`` falls in the range, at their net
-value after refunds; fully refunded orders are left out. Line cost is an estimate from the
-product's current recipe plus the current ingredient effects of the line's selected options (R4a.3a, ingredient
-unit cost × quantity; Q-ING-3: no historical cost snapshot); products without a recipe cost 0.
+value after refunds; fully refunded orders are left out. Line cost comes from the cost snapshot frozen
+on the order item at creation (0004: per-unit ingredient use × the unit cost then), so later cost or
+recipe changes never rewrite history. Orders created before snapshots existed are ESTIMATED from the
+current recipe and costs; lines without any recipe have NO cost data. Each line carries
+``cost_source`` (snapshot · estimated · missing) and ``data_quality`` summarises them (36).
 """
 
 from __future__ import annotations
@@ -72,6 +74,24 @@ def sales_feed(session: Session, actor: Actor, start: str | None, end: str | Non
     option_effects = ProductRepository(session).option_effects(
         {c.option_id for o in orders for i in o.items for c in i.choices if c.option_id})
 
+    from app.models import OrderItemRow
+    snapshots = {str(r.id): (r.cost_snapshot, r.category_name) for r in session.scalars(
+        select(OrderItemRow).where(OrderItemRow.order_id.in_([r.id for r in rows])))} if rows else {}
+    quality = {"snapshot": 0, "estimated": 0, "missing": 0, "incomplete": 0}
+
+    def line_cost(item) -> tuple[float, str]:  # type: ignore[no-untyped-def]
+        snap = (snapshots.get(item.id) or (None, None))[0]
+        if snap and snap.get("source") == "recipe" and snap.get("unit_cost") is not None:
+            if not snap.get("complete", True):
+                quality["incomplete"] += 1
+            return float(Decimal(snap["unit_cost"])), "snapshot"
+        if snap and snap.get("source") == "none":
+            return 0.0, "missing"
+        recipe = recipes.get(item.product_id)
+        if not recipe:
+            return 0.0, "missing"
+        return unit_cost(item), "estimated"
+
     def unit_cost(item) -> float:  # type: ignore[no-untyped-def]
         recipe = recipes.get(item.product_id)
         if not recipe:
@@ -82,6 +102,15 @@ def sales_feed(session: Session, actor: Actor, start: str | None, end: str | Non
         except DomainValidationError:
             used = resolve_unit_consumption(recipe)  # options changed since the sale: base recipe estimate
         return float(sum((ing_cost.get(k, Decimal(0)) * q for k, q in used.items()), Decimal(0)))
+
+    def _line(i):  # type: ignore[no-untyped-def]
+        cost, source = line_cost(i)
+        quality[source] += 1
+        frozen_category = (snapshots.get(i.id) or (None, None))[1]
+        category = frozen_category or (categories.get(products[i.product_id].category_id, "Uncategorized")
+                                       if i.product_id in products else "Uncategorized")
+        return {"product": i.product_name, "code": i.product_code, "category": category,
+                "qty": i.quantity, "price": float(i.unit_price.amount), "cost": cost, "cost_source": source}
 
     sales = []
     for row, order in zip(rows, orders):
@@ -96,11 +125,7 @@ def sales_feed(session: Session, actor: Actor, start: str | None, end: str | Non
             "total": float(net), "refunded": float(refunded),
             "channel": CHANNEL.get(order.order_type.value, order.order_type.value),
             "payment": METHOD.get(next(iter(methods)), next(iter(methods))) if len(methods) == 1 else "Split",
-            "lines": [{
-                "product": i.product_name, "code": i.product_code,
-                "category": categories.get(products[i.product_id].category_id, "Uncategorized") if i.product_id in products else "Uncategorized",
-                "qty": i.quantity, "price": float(i.unit_price.amount), "cost": unit_cost(i),
-            } for i in order.items],
+            "lines": [_line(i) for i in order.items],
         })
 
     expenses = [] if not feature_on(system, actor.business_id, "expenses") else [
@@ -108,4 +133,6 @@ def sales_feed(session: Session, actor: Actor, start: str | None, end: str | Non
         for e in session.scalars(select(ExpenseRow).where(
             ExpenseRow.business_id == actor.business_id, ExpenseRow.voided_at.is_(None),
             ExpenseRow.expense_date >= first, ExpenseRow.expense_date <= last))]
-    return {"start": first.isoformat(), "end": last.isoformat(), "timezone": str(tz), "sales": sales, "expenses": expenses}
+    return {"start": first.isoformat(), "end": last.isoformat(), "timezone": str(tz), "sales": sales, "expenses": expenses,
+            "data_quality": {**quality, "complete": quality["estimated"] == 0 and quality["missing"] == 0
+                             and quality["incomplete"] == 0}}

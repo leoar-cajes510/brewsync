@@ -5,19 +5,34 @@ import Input from '../../ui/Input';
 import Modal from '../../ui/Modal';
 import Select from '../../ui/Select';
 import Tabs from '../../ui/Tabs';
+import Toggle from '../../ui/Toggle';
 import { StockPreview } from '../inventory/inventoryShared';
 import { roundQty, type Ingredient } from '../../../types/ingredient';
 
-export type StockMode = 'restock' | 'adjust';
+/** restock = receive a purchase · adjust = correction/loss · waste = non-sale deduction · count = physical count. */
+export type StockMode = 'restock' | 'adjust' | 'waste' | 'count';
 
-const RESTOCK_REASONS = ['Supplier Delivery', 'Transfer In', 'Other'];
-const ADJUST_REASONS = ['Count Correction', 'Spoilage / Expired', 'Damaged', 'Lost', 'Other'];
+const ADJUST_REASONS = ['Damaged', 'Lost', 'Other'];
+/** Server waste reasons (never recorded as sales). */
+export const WASTE_REASONS = [
+  { value: 'expired', label: 'Expired' },
+  { value: 'spilled', label: 'Spilled' },
+  { value: 'damaged', label: 'Damaged' },
+  { value: 'spoiled', label: 'Spoiled' },
+  { value: 'preparation', label: 'Preparation waste' },
+  { value: 'other', label: 'Other' },
+];
 
 export interface StockChange {
   mode: StockMode;
+  /** Signed change of on-hand stock (count: counted − current). */
   delta: number;
   reason: string;
   note: string;
+  unitCost?: string;
+  supplier?: string;
+  updateCost?: boolean;
+  counted?: number;
 }
 
 interface IngredientStockProps {
@@ -27,16 +42,23 @@ interface IngredientStockProps {
   onApply: (ingredient: Ingredient, change: StockChange) => void;
 }
 
-// Restock / Adjust Stock for one ingredient. Always shows current → new stock
-// and asks for confirmation before applying (applied as a server stock movement).
+const TITLES: Record<StockMode, string> = { restock: 'Receive Stock', adjust: 'Adjust Stock', waste: 'Record Waste', count: 'Physical Count' };
+
+// Stock movements for one ingredient. Always shows current → new on-hand stock and asks for
+// confirmation; the server records the movement and is the authority on every rule.
 export default function IngredientStock({ ingredient, mode: initialMode, onClose, onApply }: IngredientStockProps) {
   const [mode, setMode] = useState<StockMode>(initialMode);
   const [direction, setDirection] = useState<'increase' | 'decrease'>('decrease');
   const [qty, setQty] = useState('');
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
+  const [unitCost, setUnitCost] = useState('');
+  const [supplier, setSupplier] = useState('');
+  const [updateCost, setUpdateCost] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [confirming, setConfirming] = useState(false);
+
+  const defaultReason = (m: StockMode) => (m === 'adjust' ? ADJUST_REASONS[0] : m === 'waste' ? WASTE_REASONS[0].value : m === 'count' ? 'Scheduled count' : '');
 
   useEffect(() => {
     if (!ingredient) return;
@@ -44,44 +66,67 @@ export default function IngredientStock({ ingredient, mode: initialMode, onClose
     setDirection('decrease');
     setQty('');
     setNote('');
-    setReason(initialMode === 'restock' ? RESTOCK_REASONS[0] : ADJUST_REASONS[0]);
+    setUnitCost('');
+    setSupplier('');
+    setUpdateCost(false);
+    setReason(defaultReason(initialMode));
     setSubmitted(false);
     setConfirming(false);
   }, [ingredient, initialMode]);
 
-  useEffect(() => setReason(mode === 'restock' ? RESTOCK_REASONS[0] : ADJUST_REASONS[0]), [mode]);
+  useEffect(() => setReason(defaultReason(mode)), [mode]);
 
   if (!ingredient) return null;
 
-  const amount = qty.trim() === '' ? NaN : Number(qty);
-  const sign = mode === 'restock' || direction === 'increase' ? 1 : -1;
-  const delta = Number.isFinite(amount) ? roundQty(sign * amount) : 0;
-  const next = roundQty(ingredient.stock + delta);
-  const qtyError = !(amount > 0)
-    ? 'Enter a quantity greater than 0.'
-    : next < 0
-      ? `Cannot remove more than the ${ingredient.stock} ${ingredient.unit} in stock.`
-      : undefined;
-  const noteError = reason === 'Other' && !note.trim() ? 'Add a note for “Other”.' : undefined;
-  const valid = !qtyError && !noteError;
   const unit = ingredient.unit;
+  const amount = qty.trim() === '' ? NaN : Number(qty);
+  const reserved = ingredient.reserved ?? 0;
+  let delta = 0;
+  if (Number.isFinite(amount)) {
+    if (mode === 'count') delta = roundQty(amount - ingredient.stock);
+    else delta = roundQty((mode === 'restock' || (mode === 'adjust' && direction === 'increase') ? 1 : -1) * amount);
+  }
+  const next = roundQty(ingredient.stock + delta);
+  const qtyError =
+    mode === 'count'
+      ? !(amount >= 0)
+        ? 'Enter the counted quantity (0 or more).'
+        : amount < reserved
+          ? `${reserved} ${unit} is reserved for open orders; the count cannot be lower. Complete or cancel those orders first.`
+          : undefined
+      : !(amount > 0)
+        ? 'Enter a quantity greater than 0.'
+        : next < reserved && delta < 0
+          ? `Only ${roundQty(ingredient.stock - reserved)} ${unit} can be removed (${reserved} ${unit} is reserved for open orders).`
+          : undefined;
+  const costError = unitCost.trim() !== '' && !(Number(unitCost) >= 0) ? 'Enter a cost of 0 or more.' : undefined;
+  const noteError = (reason === 'Other' || reason === 'other') && !note.trim() ? 'Add a note for “Other”.' : undefined;
+  const reasonError = mode === 'count' && !reason.trim() ? 'A reason is required.' : undefined;
+  const valid = !qtyError && !noteError && !costError && !reasonError;
 
   const review = () => {
     setSubmitted(true);
     if (valid) setConfirming(true);
   };
 
+  const summary =
+    mode === 'count'
+      ? `${ingredient.name}: system ${ingredient.stock} ${unit}, counted ${amount} ${unit} → variance ${delta > 0 ? '+' : delta < 0 ? '−' : ''}${Math.abs(delta)} ${unit} · ${reason}`
+      : `${ingredient.name}: ${ingredient.stock} → ${next} ${unit} (${delta > 0 ? '+' : '−'}${Math.abs(delta)})${
+          mode === 'waste' ? ` · Waste: ${WASTE_REASONS.find((r) => r.value === reason)?.label ?? reason}` : reason ? ` · ${reason}` : ''
+        }${supplier.trim() ? ` · Supplier: ${supplier.trim()}` : ''}${unitCost.trim() ? ` · ₱${unitCost.trim()}/${unit}` : ''}${note.trim() ? ` · ${note.trim()}` : ''}`;
+
   return (
     <>
       <Modal
         open={!confirming}
         onClose={onClose}
-        title={`${mode === 'restock' ? 'Restock' : 'Adjust Stock'} · ${ingredient.name}`}
+        title={`${TITLES[mode]} · ${ingredient.name}`}
         footer={
           <>
             <Button onClick={onClose}>Cancel</Button>
             <Button variant="primary" onClick={review}>
-              Review {mode === 'restock' ? 'Restock' : 'Adjustment'}
+              Review
             </Button>
           </>
         }
@@ -89,8 +134,10 @@ export default function IngredientStock({ ingredient, mode: initialMode, onClose
         <div className="ing-stock">
           <Tabs
             items={[
-              { value: 'restock', label: 'Restock' },
-              { value: 'adjust', label: 'Adjust Stock' },
+              { value: 'restock', label: 'Receive' },
+              { value: 'waste', label: 'Waste' },
+              { value: 'count', label: 'Count' },
+              { value: 'adjust', label: 'Adjust' },
             ]}
             value={mode}
             onChange={(v) => setMode(v as StockMode)}
@@ -111,7 +158,7 @@ export default function IngredientStock({ ingredient, mode: initialMode, onClose
           )}
           <div className="ing-stock__row">
             <Input
-              label={`${mode === 'restock' ? 'Quantity Received' : 'Adjustment Quantity'} (${unit})`}
+              label={`${mode === 'restock' ? 'Quantity Received' : mode === 'count' ? 'Counted Quantity' : mode === 'waste' ? 'Quantity Wasted' : 'Adjustment Quantity'} (${unit})`}
               type="number"
               min={0}
               step="any"
@@ -121,28 +168,73 @@ export default function IngredientStock({ ingredient, mode: initialMode, onClose
               onChange={(e) => setQty(e.target.value)}
               autoFocus
             />
-            <Select label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} options={(mode === 'restock' ? RESTOCK_REASONS : ADJUST_REASONS).map((r) => ({ value: r, label: r }))} />
+            {mode === 'adjust' && (
+              <Select label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} options={ADJUST_REASONS.map((r) => ({ value: r, label: r }))} />
+            )}
+            {mode === 'waste' && <Select label="Waste Reason" value={reason} onChange={(e) => setReason(e.target.value)} options={WASTE_REASONS} />}
+            {mode === 'count' && (
+              <Input label="Reason" value={reason} maxLength={120} error={submitted ? reasonError : undefined} onChange={(e) => setReason(e.target.value)} />
+            )}
+            {mode === 'restock' && (
+              <Input
+                label={`Unit Cost (₱ per ${unit}, optional)`}
+                type="number"
+                min={0}
+                step="any"
+                value={unitCost}
+                error={submitted ? costError : undefined}
+                onChange={(e) => setUnitCost(e.target.value)}
+              />
+            )}
           </div>
+          {mode === 'restock' && (
+            <>
+              <Input label="Supplier (optional)" value={supplier} maxLength={120} onChange={(e) => setSupplier(e.target.value)} />
+              {unitCost.trim() !== '' && (
+                <Toggle
+                  checked={updateCost}
+                  onChange={setUpdateCost}
+                  label={`Use ₱${unitCost.trim()}/${unit} as the current cost (now ₱${ingredient.cost}/${unit}; past orders keep their cost)`}
+                />
+              )}
+            </>
+          )}
           <Input
-            label={`Note${reason === 'Other' ? '' : ' (optional)'}`}
-            placeholder={mode === 'restock' ? 'Supplier, invoice no., batch…' : 'What happened?'}
+            label={`Note${noteError ? '' : ' (optional)'}`}
+            placeholder={mode === 'restock' ? 'Invoice no., batch…' : 'What happened?'}
             value={note}
             maxLength={120}
             error={submitted ? noteError : undefined}
             onChange={(e) => setNote(e.target.value)}
           />
-          <StockPreview current={ingredient.stock} next={next < 0 ? 0 : next} unit={unit} />
+          {reserved > 0 && (
+            <p className="text-muted">
+              {reserved} {unit} is reserved for open orders · {roundQty(ingredient.stock - reserved)} {unit} available
+            </p>
+          )}
+          <StockPreview current={ingredient.stock} next={next < 0 ? 0 : next} unit={unit} label={mode === 'count' ? 'Counted' : 'New Stock'} />
         </div>
       </Modal>
 
       <ConfirmDialog
         open={confirming}
-        title={mode === 'restock' ? 'Confirm restock?' : 'Confirm stock adjustment?'}
-        message={`${ingredient.name}: ${ingredient.stock} → ${next} ${unit} (${delta > 0 ? '+' : '−'}${Math.abs(delta)}) · Reason: ${reason}${note.trim() ? ` · ${note.trim()}` : ''}`}
-        confirmLabel={mode === 'restock' ? 'Apply Restock' : 'Apply Adjustment'}
+        title={`Confirm ${TITLES[mode].toLowerCase()}?`}
+        message={summary}
+        confirmLabel="Apply"
         cancelLabel="Back"
         onCancel={() => setConfirming(false)}
-        onConfirm={() => onApply(ingredient, { mode, delta, reason, note: note.trim() })}
+        onConfirm={() =>
+          onApply(ingredient, {
+            mode,
+            delta,
+            reason,
+            note: note.trim(),
+            unitCost: unitCost.trim() || undefined,
+            supplier: supplier.trim() || undefined,
+            updateCost: updateCost && unitCost.trim() !== '',
+            counted: mode === 'count' ? amount : undefined,
+          })
+        }
       />
     </>
   );

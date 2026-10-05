@@ -21,7 +21,7 @@ interface TransactionDetailsProps {
   onReprint: (t: Transaction) => Promise<void>;
   onFeedback: (message: string) => void;
   /** Full refund (POST /orders/{id}/refunds); rejects with the server error. */
-  onRefund: (t: Transaction, reason: string, idempotencyKey: string) => Promise<void>;
+  onRefund: (t: Transaction, reason: string, idempotencyKey: string, amount?: string) => Promise<void>;
 }
 
 const typeLabel = { 'dine-in': 'Dine-In', takeout: 'Takeout', delivery: 'Delivery' } as const;

@@ -24,6 +24,7 @@ from app.repositories.order_repository import OrderRepository
 from app.repositories.product_repository import ProductRepository
 from app.repositories.system_repository import SystemRepository
 from app.services.base import Actor, audit, domain_errors, emit, feature_on, idempotent, now, parse_uuid, section, text
+from app.services import availability_service as availability
 from app.services.document_service import document_dto
 from app.services.settings_service import tax_settings
 
@@ -93,7 +94,7 @@ def _price_order(session: Session, actor: Actor, data: dict[str, Any]):  # type:
     links = catalog.group_links(product_rows)
     groups = catalog.to_domain_groups(catalog.groups(actor.business_id, {l.group_id for l in links}), actor.currency)
     effects = catalog.option_effects(o.id for g in groups.values() for o in g.options)
-    items, lines_for_plan = [], []
+    items, lines_for_plan, categories = [], [], {}
     with domain_errors():
         for pid, selections, qty in merged:
             prow = product_rows.get(pid)
@@ -104,6 +105,7 @@ def _price_order(session: Session, actor: Actor, data: dict[str, Any]):  # type:
                 # Hidden from the POS menu, so the server must not sell it either.
                 raise validation(f"{prow.name} is not available (its category is inactive)")
             product = catalog.to_domain_product(prow, actor.currency, links)
+            categories[product.id] = category.name if category is not None else None
             resolved = product.resolve_selections(groups, selections)
             items.append(OrderItem.from_product(str(uuid.uuid4()), product, resolved, qty))
             # Same option effects for reservation and costing (R4a.3a); applied only when tracked.
@@ -127,19 +129,24 @@ def _price_order(session: Session, actor: Actor, data: dict[str, Any]):  # type:
             identification = IdentificationDetails(ident_in.get("customer_name"), ident_in.get("id_type"),
                                                    ident_in.get("id_number")) if ident_in else None
             snapshot = OrderDiscount.snapshot(discount, pricing.discount_total, identification)
-    return items, lines_for_plan, pricing, snapshot
+    return items, lines_for_plan, pricing, snapshot, categories
 
 
-def quote(session: Session, actor: Actor, data: dict[str, Any]) -> dict[str, Any]:
-    """Server-side totals preview; nothing is created or reserved."""
-    actor.require(PermissionKey.POS_VIEW)
-    _, lines_for_plan, pricing, _ = _price_order(session, actor, data)
-    with domain_errors():  # same consumption rules as creation, so a conflicting cart fails here first
-        ReservationPlan.for_lines(lines_for_plan, ProductRepository(session).recipes(
-            [uuid.UUID(line[0].id) for line in lines_for_plan]))
+def _totals(pricing) -> dict[str, str]:  # type: ignore[no-untyped-def]
     return {"subtotal": str(pricing.subtotal.amount), "discount_total": str(pricing.discount_total.amount),
             "tax_amount": str(pricing.tax_amount.amount), "net_amount": str(pricing.net_amount.amount),
             "total": str(pricing.total.amount)}
+
+
+def quote(session: Session, actor: Actor, data: dict[str, Any]) -> dict[str, Any]:
+    """Server-side totals preview plus availability of the exact cart; nothing is created or reserved.
+    Availability uses the same rule as order creation (availability_service.assess)."""
+    actor.require(PermissionKey.POS_VIEW)
+    _, lines_for_plan, pricing, _, _ = _price_order(session, actor, data)
+    ctx = availability.Context(session, actor.business_id, [line[0].id for line in lines_for_plan])
+    with domain_errors():  # an impossible option combination is a request error (422), as at creation
+        ReservationPlan.for_lines(lines_for_plan, ctx.recipes)
+    return {**_totals(pricing), "availability": availability.assess(ctx, lines_for_plan)}
 
 
 def create_order(session: Session, actor: Actor, data: dict[str, Any], idempotency_key: str | None) -> tuple[int, dict]:
@@ -149,7 +156,14 @@ def create_order(session: Session, actor: Actor, data: dict[str, Any], idempoten
     def run() -> tuple[int, dict]:
         system, catalog, inv, orders = (SystemRepository(session), ProductRepository(session),
                                         InventoryRepository(session), OrderRepository(session))
-        items, lines_for_plan, pricing, snapshot = _price_order(session, actor, data)
+        items, lines_for_plan, pricing, snapshot, categories = _price_order(session, actor, data)
+        expected_total = data.get("expected_total")
+        if expected_total is not None and str(expected_total) != str(pricing.total.amount):
+            # Stale cart (9): prices, discount or tax changed since the cashier saw the total.
+            raise AppError("CART_STALE", 409,
+                           f"Prices changed since this cart was totalled: the total is now {pricing.total.amount}, "
+                           f"not {expected_total}. Review the cart and charge again.",
+                           {"totals": _totals(pricing)})
         try:
             order_type = OrderType(data.get("order_type"))
         except ValueError as exc:
@@ -158,19 +172,27 @@ def create_order(session: Session, actor: Actor, data: dict[str, Any], idempoten
         with domain_errors():
             plan = ReservationPlan.for_lines(lines_for_plan, catalog.recipes([uuid.UUID(line[0].id) for line in lines_for_plan]))
         locked = inv.lock_levels(actor.business_id, plan.keys)
+        # Re-check under the row locks with the shared rule: another terminal may have sold the
+        # last of an ingredient since the quote (6, 9). The message names what is short.
+        ctx = availability.Context(session, actor.business_id, [line[0].id for line in lines_for_plan])
+        ctx.levels.update({k: lvl for k, (_, lvl) in locked.items()})
+        availability.raise_if_unavailable(availability.assess(ctx, lines_for_plan))
         at = now()
         with domain_errors():
             movements = reserve_all(plan, {k: lvl for k, (_, lvl) in locked.items()}, order_id=order_id,
                                     actor_id=str(actor.user_id), at=at)
         for key, (row, level) in locked.items():
             inv.save(actor.business_id, row, level, [m for m in movements if m.key == key])
+        extras = {item.id: {"cost_snapshot": availability.cost_snapshot(ctx, product, effects),
+                            "category_name": categories.get(product.id)}
+                  for item, (product, _, effects) in zip(items, lines_for_plan)}
         number = str(system.next_value(actor.business_id, "order"))
         with domain_errors():
             order = Order.place(id=order_id, number=number, origin=OrderOrigin.ONLINE, order_type=order_type,
                                 items=items, pricing=pricing, discount=snapshot,
                                 attribution=Attribution(str(terminal_id), str(actor.session_id), str(actor.user_id)),
                                 reservation=plan, created_at=at, tag=data.get("tag"), note=data.get("note"))
-        orders.insert(actor.business_id, order, idempotency_key)
+        orders.insert(actor.business_id, order, idempotency_key, extras)
         if snapshot is not None:
             audit(system, actor, actor.business_id, "discount.applied", "order", order.id,
                   after={"discount_id": snapshot.discount_id, "amount": str(snapshot.amount.amount),
@@ -182,6 +204,23 @@ def create_order(session: Session, actor: Actor, data: dict[str, Any], idempoten
         return 201, order_dto(order)
 
     return idempotent(session, actor.business_id, "POST /orders", idempotency_key, data, run)
+
+
+def submission_status(session: Session, actor: Actor, key: str) -> dict[str, Any]:
+    """Was the order submitted with this Idempotency-Key created? (11) Takes the same advisory lock
+    as the submission, so an in-flight request finishes first and "not_created" is conclusive."""
+    actor.require(PermissionKey.POS_CREATE_ORDERS)
+    if not key or len(key) > 80:
+        raise validation("a submission key is required")
+    if session.get_bind().dialect.name == "postgresql":
+        from sqlalchemy import text as sql_text
+        session.execute(sql_text("select pg_advisory_xact_lock(hashtextextended(:k, 0))"),
+                        {"k": f"{actor.business_id}|POST /orders|{key}"})
+    record = SystemRepository(session).idempotency(actor.business_id, "POST /orders", key)
+    if record is None:
+        return {"status": "not_created"}
+    order_id = (record.response or {}).get("id")
+    return {"status": "created", "order": get_order(session, actor, str(order_id)) if order_id else record.response}
 
 
 def _load(session: Session, actor: Actor, order_id: str, *, lock: bool):  # type: ignore[no-untyped-def]

@@ -59,7 +59,8 @@ class InventoryRepository:
                           reserved=Decimal(row.reserved), initialized=row.initialized)
 
     def save(self, business_id: uuid.UUID, row: StockLevelRow, level: StockLevel,
-             movements: Iterable[StockMovement]) -> None:
+             movements: Iterable[StockMovement], extra: dict | None = None) -> None:
+        """``extra``: receiving/count details stored on the movement rows (supplier, counted/system qty)."""
         row.on_hand, row.reserved, row.initialized = level.on_hand, level.reserved, level.initialized
         for mv in movements:
             if mv.type.value in ("restock", "initial"):
@@ -69,7 +70,7 @@ class InventoryRepository:
                 type=mv.type.value, delta_on_hand=mv.delta_on_hand, delta_reserved=mv.delta_reserved,
                 on_hand_after=mv.on_hand_after, reserved_after=mv.reserved_after, reason=mv.reason, note=mv.note,
                 unit_cost=mv.unit_cost, reference_type=mv.reference_type.value, reference_id=mv.reference_id,
-                actor_id=uuid.UUID(mv.actor_id) if mv.actor_id else None, created_at=mv.occurred_at))
+                actor_id=uuid.UUID(mv.actor_id) if mv.actor_id else None, created_at=mv.occurred_at, **(extra or {})))
         self.s.flush()
 
     def movements(self, business_id: uuid.UUID, key: StockKey, limit: int = 100) -> list[StockMovementRow]:

@@ -183,6 +183,16 @@ def update_ingredient(ingredient_id: str, request: Request, body: dict[str, Any]
     return respond(authed(request, lambda s, a: inventory_service.update_ingredient(s, a, ingredient_id, body)))
 
 
+@router.get("/ingredients/health", tags=["inventory"])
+def recipe_health(request: Request):  # type: ignore[no-untyped-def]
+    return respond(authed(request, inventory_service.recipe_health))
+
+
+@router.get("/ingredients/{ingredient_id}/dependencies", tags=["inventory"])
+def ingredient_dependencies(ingredient_id: str, request: Request):  # type: ignore[no-untyped-def]
+    return respond(authed(request, lambda s, a: inventory_service.ingredient_dependencies(s, a, ingredient_id)))
+
+
 @router.get("/ingredients/{ingredient_id}/movements", tags=["inventory"])
 def ingredient_movements(ingredient_id: str, request: Request):  # type: ignore[no-untyped-def]
     return respond(authed(request, lambda s, a: inventory_service.list_movements(
@@ -210,6 +220,12 @@ def quote(body: CreateOrderRequest, request: Request):  # type: ignore[no-untype
 @router.post("/orders", tags=["orders"])
 def create_order(body: CreateOrderRequest, request: Request):  # type: ignore[no-untyped-def]
     return respond_pair(authed(request, lambda s, a: order_service.create_order(s, a, body.payload(), idem_key(request))))
+
+
+@router.get("/orders/submissions/{key}", tags=["orders"])
+def submission_status(key: str, request: Request):  # type: ignore[no-untyped-def]
+    """Resolve an unknown outcome (timeout): was the order with this Idempotency-Key created?"""
+    return respond(authed(request, lambda s, a: order_service.submission_status(s, a, key)))
 
 
 @router.get("/orders", tags=["orders"])

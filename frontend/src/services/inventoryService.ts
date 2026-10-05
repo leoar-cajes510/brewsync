@@ -45,9 +45,31 @@ export const ingredientMovements = (id: string) => api.get<StockMovementDto[]>(`
 export const setIngredientThreshold = (id: string, threshold: string) =>
   api.patch<StockLevelDto>(`/ingredients/${id}/threshold`, { low_stock_threshold: threshold });
 
-/** Stock action on an ingredient: restock (quantity), adjust (delta + reason), correct (delta + reason), waste (quantity). */
-export const moveIngredient = (id: string, action: 'restock' | 'adjust' | 'correct' | 'waste', body: Record<string, string | undefined>) =>
+export type IngredientAction = 'restock' | 'adjust' | 'correct' | 'waste' | 'count';
+
+/** Stock action on an ingredient: restock (quantity, unit_cost?, supplier?, update_unit_cost?), adjust (delta + reason),
+ *  correct (delta + reason), waste (quantity + reason), count (counted_quantity + reason). */
+export const moveIngredient = (id: string, action: IngredientAction, body: Record<string, string | boolean | undefined>) =>
   api.post<StockLevelDto>(`/ingredients/${id}/${action}`, body, newIdempotencyKey());
+
+export interface IngredientDependenciesDto {
+  ingredient_id: string;
+  name: string;
+  unit: string;
+  status: string;
+  available: string;
+  active_count: number;
+  products: { id: string; name: string; active: boolean; track_ingredients: boolean; via: 'recipe' | 'choice' }[];
+  options: { id: string; name: string }[];
+}
+export const ingredientDependencies = (id: string) => api.get<IngredientDependenciesDto>(`/ingredients/${id}/dependencies`);
+
+export interface RecipeHealthDto {
+  issues: { code: string; product_id: string | null; product_name?: string; message: string; severity: 'error' | 'warning' }[];
+  errors: number;
+  warnings: number;
+}
+export const recipeHealth = () => api.get<RecipeHealthDto>('/ingredients/health');
 
 export const getRecipe = (productId: string) => api.get<RecipeDto>(`/products/${productId}/recipe`);
 export const saveRecipe = (productId: string, lines: { ingredient_id: string; quantity: string }[], trackIngredients?: boolean) =>

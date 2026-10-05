@@ -53,6 +53,11 @@ export default function IngredientTable({ ingredients, selectedId, onSelect, onR
               </strong>
               <span>{Math.round(pct)}%</span>
             </div>
+            {(i.reserved ?? 0) > 0 && (
+              <span className="ing-muted" title="Reserved for open orders; available = on hand − reserved">
+                {i.reserved} reserved
+              </span>
+            )}
             <span className="ing-qty__track">
               <span className="ing-qty__bar" style={{ width: `${i.stock > 0 ? Math.max(pct, 5) : 0}%` }} />
             </span>
@@ -67,7 +72,21 @@ export default function IngredientTable({ ingredients, selectedId, onSelect, onR
       header: 'Status',
       width: '11%',
       // A deactivated ingredient is not used by recipes; say so instead of a stock level.
-      render: (i) => (i.active === false ? <Badge tone="neutral">Inactive</Badge> : <StockBadge status={(i.status ?? stockStatus(i.stock, i.threshold))} />),
+      render: (i) => {
+        if (i.active === false) return <Badge tone="neutral">Inactive</Badge>;
+        const s = i.status ?? stockStatus(i.stock, i.threshold);
+        const used = i.usedBy ?? [];
+        return (
+          <div className="ing-status">
+            <StockBadge status={s} />
+            {used.length > 0 && s !== 'in' && (
+              <span className="ing-muted ing-status__affects" title={`Used by: ${used.join(', ')}`}>
+                Affects {used.length} product{used.length === 1 ? '' : 's'}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     { key: 'updated', header: 'Last Updated', width: '10%', render: (i) => <span className="ing-muted">{formatWhen(i.updatedAt)}</span> },
     {
@@ -83,7 +102,7 @@ export default function IngredientTable({ ingredients, selectedId, onSelect, onR
               {s === 'out' ? 'Restock Now' : 'Restock'}
             </button>
             <button type="button" className="ing-act" onClick={() => onAdjust(i)}>
-              Adjust
+              Stock…
             </button>
             <button type="button" className="icon-btn" aria-label={`Edit ${i.name}`} title="Edit" onClick={() => onEdit(i)}>
               <Pencil size={14} />

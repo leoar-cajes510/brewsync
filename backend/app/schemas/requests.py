@@ -55,6 +55,8 @@ class CreateOrderRequest(_Model):
     discount: OrderDiscountIn | None = None
     tag: str | None = Field(default=None, max_length=40)
     note: str | None = Field(default=None, max_length=500)
+    # The total the cashier saw (from /orders/quote); a mismatch at creation → 409 CART_STALE.
+    expected_total: str | None = Field(default=None, max_length=20)
 
 
 class StatusRequest(_Model):
@@ -77,6 +79,7 @@ class PaymentRequestIn(_Model):
 class RefundRequest(_Model):
     kind: str
     reason: str = Field(max_length=200)
+    amount: str | None = Field(default=None, max_length=20)  # partial refunds only
 
 
 class SettingsUpdate(_Model):

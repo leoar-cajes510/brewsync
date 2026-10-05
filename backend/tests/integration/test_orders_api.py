@@ -189,12 +189,39 @@ class RefundTests(DbTestCase):
         r = self.call("POST", f"/orders/{o['id']}/refunds", env["admin"], {"kind": "full", "reason": "again"},
                       key="rf2", expect=422)
 
-    def test_partial_refund_blocked_and_permissions_and_toggle(self):
+    def test_partial_refunds_allocate_newest_first_and_cap(self):
+        env = self.bootstrap()
+        o = self._completed(env)  # cash 300 then GCash 200
+        url = f"/orders/{o['id']}/refunds"
+        self.call("POST", url, env["admin"], {"kind": "partial", "reason": "x"}, key="p0", expect=422)  # no amount
+        self.call("POST", url, env["admin"], {"kind": "partial", "reason": "x", "amount": "-1"}, key="p0b", expect=422)
+        self.call("POST", url, env["admin"], {"kind": "partial", "reason": "", "amount": "10.00"}, key="p0c", expect=422)
+        r = self.call("POST", url, env["admin"], {"kind": "partial", "reason": "Cold drink", "amount": "250.00"},
+                      key="p1", expect=201).json()
+        self.assertEqual(r["refund_status"], "partially_refunded")
+        again = self.call("POST", url, env["admin"], {"kind": "partial", "reason": "Cold drink", "amount": "250.00"},
+                          key="p1", expect=201).json()  # retry: replayed, not a second refund
+        self.assertEqual(len(again["refunds"]), 1)
+        # newest payment (GCash 200) fully, then 50 of the cash payment
+        allocs = {self.scalar("select p.method from {s}.payments p where p.id=:i", i=row[0]): str(row[1])
+                  for row in self._rows("select payment_id, amount from {s}.refund_allocations")}
+        self.assertEqual(allocs, {"gcash": "200.00", "cash": "50.00"})
+        self.assertEqual(self.scalar("select status from {s}.documents"), "partially_refunded")
+        r = self.call("POST", url, env["admin"], {"kind": "partial", "reason": "x", "amount": "250.01"}, key="p2", expect=422)
+        r = self.call("POST", url, env["admin"], {"kind": "full", "reason": "rest"}, key="p3", expect=201).json()
+        self.assertEqual((r["refund_status"], self.scalar("select status from {s}.documents")), ("refunded", "refunded"))
+        self.assertEqual(self.scalar("select sum(amount) from {s}.refunds"), 500)
+        self.assertEqual(self.scalar("select count(*) from {s}.stock_movements where type='sale_reversal'"), 0)
+        self.assertEqual(self.scalar("select count(*) from {s}.audit_logs where action='refund.recorded'"), 2)
+
+    def _rows(self, sql: str):  # type: ignore[no-untyped-def]
+        from sqlalchemy import text
+        with self.engine.connect() as conn:
+            return list(conn.execute(text(sql.replace("{s}", '"brewsync_test"'))))
+
+    def test_refund_permissions_and_toggle(self):
         env = self.bootstrap()
         o = self._completed(env)
-        r = self.call("POST", f"/orders/{o['id']}/refunds", env["admin"], {"kind": "partial", "reason": "x"},
-                      key="p1", expect=409)
-        self.assertEqual(r.json()["error"]["details"]["question_id"], "Q-REF-5")
         cashier = self.make_cashier(env["admin"], env["device"])
         r = self.call("POST", f"/orders/{o['id']}/refunds", cashier, {"kind": "full", "reason": "x"}, key="p2",
                       expect=403)

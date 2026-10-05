@@ -9,7 +9,7 @@ import Modal from '../../components/ui/Modal';
 import Table, { type TableColumn } from '../../components/ui/Table';
 import { ActionFeedback } from '../../components/receipts/ReceiptPrinter';
 import { errorMessage } from '../../services/api';
-import { deactivateTerminal, listTerminals, registerTerminal, resetTerminalActivation } from '../../services/terminalService';
+import { deactivateTerminal, listTerminals, registerTerminal, resetTerminalActivation, revokeTerminal } from '../../services/terminalService';
 import type { TerminalDto, TerminalRegistered } from '../../types/api';
 import { useAuth } from '../../stores/authStore';
 import '../../components/settings/settingsTerminals.css';
@@ -38,6 +38,26 @@ export default function SettingsTerminalsPage() {
   const [busy, setBusy] = useState(false);
   const [issued, setIssued] = useState<TerminalRegistered | null>(null);
   const [confirm, setConfirm] = useState<{ kind: 'reset' | 'deactivate'; terminal: TerminalDto } | null>(null);
+  const [revoking, setRevoking] = useState<TerminalDto | null>(null);
+  const [revokeReason, setRevokeReason] = useState('');
+  const [revokeBusy, setRevokeBusy] = useState(false);
+
+  const runRevoke = async () => {
+    if (!revoking || !revokeReason.trim() || revokeBusy) return;
+    setRevokeBusy(true);
+    setActionError(null);
+    try {
+      await revokeTerminal(revoking.id, revokeReason.trim());
+      setFeedback(`Terminal ${revoking.code} revoked`);
+      setRevoking(null);
+      await load();
+    } catch (err) {
+      setActionError(errorMessage(err));
+      setRevoking(null);
+    } finally {
+      setRevokeBusy(false);
+    }
+  };
   const [actionError, setActionError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const clearFeedback = useCallback(() => setFeedback(null), []);
@@ -115,7 +135,7 @@ export default function SettingsTerminalsPage() {
       header: '',
       align: 'right',
       render: (t) =>
-        t.id === user?.terminal_id ? null : (
+        t.id === user?.terminal_id || t.status === 'revoked' ? null : (
           <div className="tm-actions">
             <Button size="sm" onClick={() => setConfirm({ kind: 'reset', terminal: t })}>
               {t.status === 'active' ? 'Reset Activation' : 'New Activation Code'}
@@ -125,6 +145,17 @@ export default function SettingsTerminalsPage() {
                 Deactivate
               </Button>
             )}
+            <Button
+              size="sm"
+              variant="danger"
+              title="Lost, stolen or retired device: permanently blocked"
+              onClick={() => {
+                setRevokeReason('');
+                setRevoking(t);
+              }}
+            >
+              Revoke
+            </Button>
           </div>
         ),
     },
@@ -237,6 +268,26 @@ export default function SettingsTerminalsPage() {
         onConfirm={() => void runConfirmed()}
         onCancel={() => setConfirm(null)}
       />
+      <Modal
+        open={revoking !== null}
+        onClose={() => setRevoking(null)}
+        size="sm"
+        title={`Revoke ${revoking?.code ?? ''} permanently?`}
+        footer={
+          <>
+            <Button onClick={() => setRevoking(null)}>Cancel</Button>
+            <Button variant="danger" disabled={!revokeReason.trim() || revokeBusy} onClick={() => void runRevoke()}>
+              {revokeBusy ? 'Revoking…' : 'Revoke Terminal'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-muted">
+          Use this for a lost, stolen or retired device. It is signed out at once and can never be activated again; register a new terminal for a
+          replacement device.
+        </p>
+        <Input label="Reason" value={revokeReason} maxLength={200} autoFocus onChange={(e) => setRevokeReason(e.target.value)} />
+      </Modal>
       <ActionFeedback message={feedback} onDone={clearFeedback} />
     </div>
   );

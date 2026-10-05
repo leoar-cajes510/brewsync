@@ -12,13 +12,15 @@ interface RefundDialogProps {
   amount: number;
   onClose: () => void;
   /** POST /orders/{id}/refunds; rejects with the server error, shown inline. */
-  onRefund: (t: Transaction, reason: string, idempotencyKey: string) => Promise<void>;
+  onRefund: (t: Transaction, reason: string, idempotencyKey: string, amount?: string) => Promise<void>;
 }
 
 const MAX_REASON = 200;
 
 export default function RefundDialog({ transaction: t, amount, onClose, onRefund }: RefundDialogProps) {
   const [reason, setReason] = useState('');
+  const [mode, setMode] = useState<'full' | 'partial'>('full');
+  const [partial, setPartial] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -27,6 +29,8 @@ export default function RefundDialog({ transaction: t, amount, onClose, onRefund
 
   useEffect(() => {
     setReason('');
+    setMode('full');
+    setPartial('');
     setSubmitted(false);
     setServerError(null);
     setKey(newIdempotencyKey());
@@ -35,14 +39,29 @@ export default function RefundDialog({ transaction: t, amount, onClose, onRefund
   if (!t) return null;
 
   const reasonError = !reason.trim() ? 'Enter a reason for the refund.' : undefined;
+  const partialValue = Number(partial);
+  const amountError =
+    mode !== 'partial'
+      ? undefined
+      : !/^\d+(\.\d{1,2})?$/.test(partial.trim()) || partialValue <= 0
+        ? 'Enter an amount greater than 0 with at most 2 decimals.'
+        : partialValue > amount + 1e-9
+          ? `At most ${formatPeso(amount)} can be refunded.`
+          : undefined;
+  const refundAmount = mode === 'partial' && !amountError ? partialValue : amount;
+  // A different request needs a different key; the same request keeps it (safe retry).
+  const change = <T,>(setter: (v: T) => void) => (v: T) => {
+    setter(v);
+    setKey(newIdempotencyKey());
+  };
 
   const submit = async () => {
     setSubmitted(true);
-    if (reasonError || saving) return;
+    if (reasonError || amountError || saving) return;
     setSaving(true);
     setServerError(null);
     try {
-      await onRefund(t, reason.trim(), key);
+      await onRefund(t, reason.trim(), key, mode === 'partial' ? partialValue.toFixed(2) : undefined);
     } catch (err) {
       setServerError(errorMessage(err));
     } finally {
@@ -60,15 +79,35 @@ export default function RefundDialog({ transaction: t, amount, onClose, onRefund
         <>
           <Button onClick={onClose}>Keep Transaction</Button>
           <Button variant="danger" onClick={() => void submit()} disabled={saving}>
-            {saving ? 'Refunding…' : `Refund ${formatPeso(amount)}`}
+            {saving ? 'Refunding…' : `Refund ${formatPeso(refundAmount)}`}
           </Button>
         </>
       }
     >
       <form onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+        <div className="segmented" role="radiogroup" aria-label="Refund type" style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <Button size="sm" variant={mode === 'full' ? 'primary' : undefined} aria-pressed={mode === 'full'} onClick={() => change(setMode)('full')}>
+            Full · {formatPeso(amount)}
+          </Button>
+          <Button size="sm" variant={mode === 'partial' ? 'primary' : undefined} aria-pressed={mode === 'partial'} onClick={() => change(setMode)('partial')}>
+            Partial amount
+          </Button>
+        </div>
         <p className="text-muted">
-          A full refund of {formatPeso(amount)} is recorded against the original payment(s). The order and receipt are kept and marked refunded.
+          {mode === 'full'
+            ? `A full refund of ${formatPeso(amount)} is recorded against the original payment(s).`
+            : 'A partial refund is returned against the most recent payment first.'}{' '}
+          The order and receipt are kept; nothing is returned to stock.
         </p>
+        {mode === 'partial' && (
+          <Input
+            label="Amount to refund"
+            inputMode="decimal"
+            value={partial}
+            onChange={(e) => change(setPartial)(e.target.value)}
+            error={submitted ? amountError : undefined}
+          />
+        )}
         <Input
           label="Reason"
           value={reason}

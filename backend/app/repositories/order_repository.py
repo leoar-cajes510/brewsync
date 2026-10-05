@@ -58,7 +58,9 @@ class OrderRepository:
         self.s = session
 
     # --- create ------------------------------------------------------------------------------------------
-    def insert(self, business_id: uuid.UUID, order: Order, idempotency_key: str | None) -> OrderRow:
+    def insert(self, business_id: uuid.UUID, order: Order, idempotency_key: str | None,
+               item_extras: dict[str, dict] | None = None) -> OrderRow:
+        """``item_extras``: per item id, the frozen cost snapshot and category name (0004)."""
         t = order.totals
         row = OrderRow(
             id=uuid.UUID(order.id), business_id=business_id, number=order.number, offline_ref=order.offline_ref,
@@ -82,7 +84,8 @@ class OrderRepository:
                 product_code=item.product_code, product_name=item.product_name, tax_class=item.tax_class.value,
                 base_price=item.base_price.amount, unit_price=item.unit_price.amount, quantity=item.quantity,
                 line_total=item.line_total.amount,
-                discount_allocation=(item.discount_allocation or Money.zero(order.currency)).amount)
+                discount_allocation=(item.discount_allocation or Money.zero(order.currency)).amount,
+                **(item_extras or {}).get(item.id, {}))
             self.s.add(item_row)
             if item.choices:
                 # No ORM relationship links the rows, so the unit of work does not order these

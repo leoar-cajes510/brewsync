@@ -30,6 +30,10 @@ export interface Ingredient {
   active?: boolean;
   /** Stock status as computed by the server (available vs threshold). */
   status?: StockStatus;
+  /** Reserved for open orders (cannot be counted/adjusted away). */
+  reserved?: number;
+  /** Active recipe-deducting products that can consume this ingredient (server). */
+  usedBy?: string[];
   updatedAt: Date;
   movements: IngredientMovement[];
 }

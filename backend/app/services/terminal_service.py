@@ -125,8 +125,35 @@ def deactivate(session: Session, actor: Actor, terminal_id: Any) -> dict[str, An
     row.activation_code_hash = row.activation_expires_at = None
     for srow in staff.active_sessions_for_terminal(row.id):
         srow.ended_at, srow.end_reason = now(), "terminal_revoked"
-    audit(system, actor, actor.business_id, "terminal.deactivated", "terminal", row.id)
+    audit(system, actor, actor.business_id, "terminal.deactivated", "terminal", row.id,
+          before={"status": "active"}, after={"status": row.status})
     emit(system, actor, actor.business_id, "terminal.status_changed", "terminal", row.id, 4, {"status": row.status})
+    return terminal_dto(row)
+
+
+def revoke(session: Session, actor: Actor, terminal_id: Any, data: dict[str, Any]) -> dict[str, Any]:
+    """Permanently revoke a lost, stolen or retired device (28): its credential and any pending
+    activation code are destroyed, its sessions end, and it can never be re-activated."""
+    actor.require(PermissionKey.TERMINALS_MANAGE)
+    staff, system = StaffRepository(session), SystemRepository(session)
+    row = _owned(staff, actor, terminal_id)
+    if actor.terminal_id is not None and row.id == actor.terminal_id:
+        raise AppError("INVALID_TRANSITION", 409, "You are signed in on this terminal; revoke it from another terminal")
+    reason = text(data.get("reason", ""), "reason").strip()
+    if not reason or len(reason) > 200:
+        raise validation("a reason is required (≤ 200 characters)")
+    before = row.status
+    terminal = staff.to_domain_terminal(row)
+    with domain_errors():
+        terminal.revoke()
+    staff.apply_terminal(row, terminal)
+    row.device_credential_hash = None
+    row.activation_code_hash = row.activation_expires_at = None
+    for srow in staff.active_sessions_for_terminal(row.id):
+        srow.ended_at, srow.end_reason = now(), "terminal_revoked"
+    audit(system, actor, actor.business_id, "terminal.revoked", "terminal", row.id,
+          before={"status": before}, after={"status": row.status, "reason": reason})
+    emit(system, actor, actor.business_id, "terminal.status_changed", "terminal", row.id, 5, {"status": row.status})
     return terminal_dto(row)
 
 

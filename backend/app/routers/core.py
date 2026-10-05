@@ -133,6 +133,13 @@ def deactivate_terminal(terminal_id: str, request: Request):  # type: ignore[no-
     return respond(authed(request, lambda s, a: terminal_service.deactivate(s, a, parse_uuid(terminal_id, "terminal"))))
 
 
+@router.post("/terminals/{terminal_id}/revoke", tags=["terminals"])
+def revoke_terminal(terminal_id: str, request: Request, body: dict[str, Any] = Body(default={})):  # type: ignore[no-untyped-def]
+    """Permanent revocation of a lost/stolen/retired device."""
+    from app.services.base import parse_uuid
+    return respond(authed(request, lambda s, a: terminal_service.revoke(s, a, parse_uuid(terminal_id, "terminal"), body)))
+
+
 @router.patch("/terminals/{terminal_id}", tags=["terminals"])
 def rename_terminal(terminal_id: str, request: Request, body: dict[str, Any] = Body(...)):  # type: ignore[no-untyped-def]
     from app.services.base import parse_uuid

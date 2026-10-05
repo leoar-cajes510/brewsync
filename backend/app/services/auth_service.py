@@ -131,6 +131,10 @@ def authenticate(session: Session, token: str | None, *, user_initiated: bool = 
     staff.apply_session(srow, domain_session)
     if user.status != "active":
         raise AppError("UNAUTHENTICATED", 401, "Account inactive")
+    if srow.terminal_id is not None and (terminal is None or terminal.status != "active"):
+        # Defence in depth (28): a deactivated/revoked terminal's sessions are ended when it changes,
+        # but no request may run on a terminal that is not active, whatever the session row says.
+        raise AppError("UNAUTHENTICATED", 401, "This terminal is no longer active")
     return Actor(user_id=user.id, business_id=business.id, currency=business.currency_code,
                  role=RoleKey(role.key), permissions=granted, session_id=srow.id,
                  terminal_id=srow.terminal_id, full_name=user.full_name,

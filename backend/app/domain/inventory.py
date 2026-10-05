@@ -62,6 +62,16 @@ class AdjustmentReason(StrEnum):
     OTHER = "other"
 
 
+class WasteReason(StrEnum):
+    """Non-sale deductions (15). Never counted as sales."""
+    EXPIRED = "expired"
+    SPILLED = "spilled"
+    DAMAGED = "damaged"
+    SPOILED = "spoiled"
+    PREPARATION = "preparation"
+    OTHER = "other"
+
+
 class StockStatus(StrEnum):
     IN = "in"
     LOW = "low"
@@ -217,11 +227,31 @@ class StockLevel:
                 note: str | None = None) -> StockMovement:
         return self._signed_manual(MovementType.CORRECTION, delta, reason, actor_id=actor_id, at=at, note=note)
 
-    def waste(self, quantity: Decimal, *, actor_id: str, at: datetime, note: str | None = None) -> StockMovement:
+    def waste(self, quantity: Decimal, *, actor_id: str, at: datetime, note: str | None = None,
+              reason: WasteReason | str | None = None) -> StockMovement:
         q = self._quantity(quantity)
+        try:
+            why = WasteReason(reason) if reason is not None else None
+        except ValueError as exc:
+            raise ValidationError("waste reason must be expired, spilled, damaged, spoiled, preparation or other") from exc
+        if why is WasteReason.OTHER and not (note or "").strip():
+            raise ValidationError("describe the waste in the note when the reason is 'other'")
         self._manual_decrease_guard(self.on_hand - q)
         return self._apply(MovementType.WASTE, -q, Decimal("0"), reference_type=ReferenceType.MANUAL,
-                           reference_id=None, actor_id=actor_id, at=at, note=note)
+                           reference_id=None, actor_id=actor_id, at=at, note=note,
+                           reason=why.value if why else None)
+
+    def count(self, counted: Decimal, reason: str, *, actor_id: str, at: datetime,
+              note: str | None = None) -> StockMovement | None:
+        """Physical count (35): sets on_hand to the counted quantity through a CORRECTION movement
+        whose delta is the variance. ``None`` when the count matches (nothing to move)."""
+        c = self._quantity(counted, allow_zero=True)
+        if c < self.reserved:
+            raise StockReserved(f"counted {c} is below the {self.reserved} reserved for open orders; "
+                                "complete or cancel those orders first, or recount")
+        if c == self.on_hand:
+            return None
+        return self.correct(c - self.on_hand, reason or "physical count", actor_id=actor_id, at=at, note=note)
 
     # --- order-driven movements (R4.2–R4.4) ------------------------------------------------------
     def reserve(self, quantity: Decimal, *, order_id: str, actor_id: str | None, at: datetime) -> StockMovement:
@@ -299,16 +329,27 @@ def _levels_for(plan: ReservationPlan, levels: Mapping[StockKey, StockLevel]) ->
     return [levels[key] for key in plan.keys]  # plan keys are sorted: deterministic order
 
 
+def shortfalls(plan: ReservationPlan, levels: Mapping[StockKey, StockLevel]) -> dict[StockKey, tuple[Decimal, Decimal]]:
+    """THE availability rule (R4.2, R4.6): every subject whose required quantity exceeds
+    ``available = on_hand − reserved``, as ``{key: (required, available)}``. A subject without a
+    stock level counts as 0 available. Reservation, quotes and the POS menu all use this function,
+    so the POS can never show something the server would refuse (or the reverse)."""
+    result: dict[StockKey, tuple[Decimal, Decimal]] = {}
+    for key, required in plan.quantities.items():
+        level = levels.get(key)
+        available = level.available if level is not None else Decimal("0")
+        if required > available:
+            result[key] = (required, available)
+    return result
+
+
 def reserve_all(plan: ReservationPlan, levels: Mapping[StockKey, StockLevel], *, order_id: str,
                 actor_id: str | None, at: datetime) -> list[StockMovement]:
     """All-or-nothing reservation (R4.2): check every subject before changing any."""
+    short = shortfalls(plan, levels)
+    if short:
+        raise InsufficientStock({key: required - available for key, (required, available) in short.items()})
     targets = _levels_for(plan, levels)
-    shortfalls = {
-        level.key: plan.quantities[level.key] - level.available
-        for level in targets if plan.quantities[level.key] > level.available
-    }
-    if shortfalls:
-        raise InsufficientStock(shortfalls)
     return [level.reserve(plan.quantities[level.key], order_id=order_id, actor_id=actor_id, at=at)
             for level in targets]
 
@@ -336,20 +377,20 @@ def finalize_sale_all(plan: ReservationPlan, levels: Mapping[StockKey, StockLeve
 
 
 def pos_availability(product: Product, levels: Mapping[StockKey, StockLevel],
-                     recipe: Recipe | None) -> int | None:
-    """Sellable units (R4.6); ``None`` when the product tracks no stock (unlimited)."""
-    limits: list[int] = []
-    if product.track_units:
-        level = levels.get(StockKey(SubjectType.PRODUCT, product.id))
-        limits.append(int(level.available) if level else 0)
-    if product.track_ingredients:
-        if recipe is None or not recipe.lines:
-            limits.append(0)
-        else:
-            for line in recipe.lines:
-                level = levels.get(StockKey(SubjectType.INGREDIENT, line.ingredient_id))
-                available = level.available if level else Decimal("0")
-                limits.append(int(available // line.quantity))
+                     recipe: Recipe | None, effects: Sequence[ChoiceEffect] = ()) -> int | None:
+    """Whole units sellable of one configuration (R4.6); ``None`` when nothing is tracked (unlimited).
+    Uses the same consumption rule as reservations (base → SCALE → REPLACE → ADD)."""
+    if not product.tracks_stock:
+        return None
+    try:
+        plan = ReservationPlan.for_lines([(product, 1, tuple(effects))], {product.id: recipe} if recipe else {})
+    except ValidationError:
+        return 0
+    limits = []
+    for key, per_unit in plan.quantities.items():
+        level = levels.get(key)
+        available = level.available if level is not None else Decimal("0")
+        limits.append(int(available // per_unit))
     return min(limits) if limits else None
 
 

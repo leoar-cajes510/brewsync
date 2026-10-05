@@ -19,6 +19,7 @@ from app.repositories.inventory_repository import InventoryRepository
 from app.repositories.product_repository import ProductRepository
 from app.repositories.system_repository import SystemRepository
 from app.services.base import Actor, audit, domain_errors, emit, feature_on, flag, idempotent, now, objects, parse_uuid, text
+from app.services import availability_service
 from app.services.product_service import _dec
 
 
@@ -60,11 +61,21 @@ def move_stock(session: Session, actor: Actor, subject_type: SubjectType, subjec
         row, level = locked[key]
         at, who, note = now(), str(actor.user_id), data.get("note")
         before_status = level.status().value
+        before = {"on_hand": str(level.on_hand), "reserved": str(level.reserved)}
+        extra: dict[str, Any] = {}
+        details: dict[str, Any] = {}
         with domain_errors():
-            if action == "restock":
+            if action == "restock":  # purchase receiving (33): optional supplier and unit cost
                 unit_cost = _dec(data["unit_cost"], "unit_cost") if data.get("unit_cost") not in (None, "") else None
+                supplier = text(data.get("supplier"), "supplier").strip()
+                if len(supplier) > 120:
+                    raise validation("supplier must be ≤ 120 characters")
                 mv = level.restock(_dec(data.get("quantity"), "quantity"), actor_id=who, at=at, unit_cost=unit_cost,
                                    note=note)
+                if supplier:
+                    extra["supplier"] = details["supplier"] = supplier
+                if unit_cost is not None:
+                    details["unit_cost"] = str(unit_cost)
             elif action == "adjust":
                 try:
                     reason = AdjustmentReason(data.get("reason"))
@@ -75,12 +86,35 @@ def move_stock(session: Session, actor: Actor, subject_type: SubjectType, subjec
                 mv = level.correct(_dec(data.get("delta"), "delta"), text(data.get("reason", ""), "reason"), actor_id=who, at=at,
                                    note=note)
             elif action == "waste":
-                mv = level.waste(_dec(data.get("quantity"), "quantity"), actor_id=who, at=at, note=note)
+                mv = level.waste(_dec(data.get("quantity"), "quantity"), actor_id=who, at=at, note=note,
+                                 reason=data.get("reason") or None)
+            elif action == "count":  # physical count vs system on_hand (35)
+                counted = _dec(data.get("counted_quantity"), "counted_quantity")
+                reason = text(data.get("reason", ""), "reason").strip()
+                if not reason:
+                    raise validation("a reason is required for a stock count")
+                system_qty = level.on_hand
+                mv = level.count(counted, reason, actor_id=who, at=at, note=note)
+                details = {"counted_quantity": str(counted), "system_quantity": str(system_qty),
+                           "variance": str(counted - system_qty), "reason": reason}
+                extra = {"counted_quantity": counted, "system_quantity": system_qty}
             else:
                 raise not_found("stock action")
-        inv.save(actor.business_id, row, level, [mv])
-        audit(system, actor, actor.business_id, f"stock.{action}", subject_type.value, sid,
-              after={"delta_on_hand": str(mv.delta_on_hand), "on_hand_after": str(mv.on_hand_after)})
+        update_cost = action == "restock" and subject_type is SubjectType.INGREDIENT and flag(
+            data.get("update_unit_cost"), "update_unit_cost") and data.get("unit_cost") not in (None, "")
+        if mv is not None:
+            inv.save(actor.business_id, row, level, [mv], extra)
+        if update_cost:  # explicit opt-in: the ingredient's current cost becomes this purchase cost
+            ing = ProductRepository(session).ingredient(sid)
+            if ing is not None:
+                old_cost = f"{Decimal(ing.unit_cost):.4f}"
+                ing.unit_cost = _dec(data["unit_cost"], "unit_cost")
+                session.flush()
+                audit(system, actor, actor.business_id, "ingredient.cost_changed", "ingredient", sid,
+                      before={"unit_cost": old_cost}, after={"unit_cost": f"{Decimal(ing.unit_cost):.4f}", "source": "receiving"})
+        audit(system, actor, actor.business_id, f"stock.{action}", subject_type.value, sid, before=before,
+              after={"delta_on_hand": str(mv.delta_on_hand) if mv else "0", "on_hand_after": str(level.on_hand),
+                     "reason": mv.reason if mv else details.get("reason"), "note": note, **details})
         emit(system, actor, actor.business_id, "stock.changed", subject_type.value, sid, 1,
              {"available": str(level.available)})
         status = level.status().value
@@ -141,6 +175,9 @@ def set_recipe(session: Session, actor: Actor, product_id: str, lines: list[dict
     product = repo.product(pid)
     if product is None or product.business_id != actor.business_id:
         raise not_found("product")
+    old_recipe = repo.recipes([pid]).get(str(pid))
+    before = {"track_ingredients": product.track_ingredients,
+              "lines": [{"ingredient_id": l.ingredient_id, "quantity": str(l.quantity)} for l in (old_recipe.lines if old_recipe else ())]}
     recipe = Recipe(str(pid))
     with domain_errors():
         for line in objects(lines, "lines"):
@@ -159,8 +196,9 @@ def set_recipe(session: Session, actor: Actor, product_id: str, lines: list[dict
     elif track_ingredients is not None:
         product.track_ingredients = bool(track_ingredients)
     session.flush()
-    audit(SystemRepository(session), actor, actor.business_id, "recipe.updated", "product", pid,
-          after={"lines": len(recipe.lines), "track_ingredients": product.track_ingredients})
+    audit(SystemRepository(session), actor, actor.business_id, "recipe.updated", "product", pid, before=before,
+          after={"track_ingredients": product.track_ingredients,
+                 "lines": [{"ingredient_id": l.ingredient_id, "quantity": str(l.quantity)} for l in recipe.lines]})
     return {"product_id": str(pid), "track_ingredients": product.track_ingredients,
             "lines": [{"ingredient_id": l.ingredient_id, "quantity": str(l.quantity)} for l in recipe.lines]}
 
@@ -172,7 +210,10 @@ def movement_dto(r: Any) -> dict[str, Any]:
             "on_hand_after": str(r.on_hand_after), "reserved_after": str(r.reserved_after), "reason": r.reason,
             "note": r.note, "unit_cost": str(r.unit_cost) if r.unit_cost is not None else None,
             "reference_type": r.reference_type, "reference_id": r.reference_id,
-            "actor_id": str(r.actor_id) if r.actor_id else None, "created_at": r.created_at}
+            "actor_id": str(r.actor_id) if r.actor_id else None, "created_at": r.created_at,
+            "supplier": getattr(r, "supplier", None),
+            "counted_quantity": str(r.counted_quantity) if getattr(r, "counted_quantity", None) is not None else None,
+            "system_quantity": str(r.system_quantity) if getattr(r, "system_quantity", None) is not None else None}
 
 
 def list_movements(session: Session, actor: Actor, subject_type: SubjectType, subject_id: str) -> list[dict[str, Any]]:
@@ -214,7 +255,9 @@ def list_ingredients(session: Session, actor: Actor) -> list[dict[str, Any]]:
     """Ingredients with their stock level (on_hand, reserved, available, status)."""
     actor.require(PermissionKey.INGREDIENTS_VIEW)
     levels = {r.subject_id: r for r in InventoryRepository(session).levels(actor.business_id, SubjectType.INGREDIENT)}
-    return [ingredient_dto(r, levels.get(r.id)) for r in ProductRepository(session).ingredients(actor.business_id)]
+    used_by = availability_service.dependency_map(session, actor.business_id)
+    return [{**ingredient_dto(r, levels.get(r.id)), "used_by": used_by.get(str(r.id), [])}
+            for r in ProductRepository(session).ingredients(actor.business_id)]
 
 
 def update_ingredient(session: Session, actor: Actor, ingredient_id: str, data: dict[str, Any]) -> dict[str, Any]:
@@ -247,7 +290,37 @@ def update_ingredient(session: Session, actor: Actor, ingredient_id: str, data: 
         audit(SystemRepository(session), actor, actor.business_id, "ingredient.updated", "ingredient", row.id,
               before={k: before[k] for k in changed}, after={k: after[k] for k in changed})
     levels = {r.subject_id: r for r in InventoryRepository(session).levels(actor.business_id, SubjectType.INGREDIENT)}
-    return ingredient_dto(row, levels.get(row.id))
+    dto = ingredient_dto(row, levels.get(row.id))
+    if before["active"] and not row.active:  # dependency warning (31): what this just made unsellable
+        deps = availability_service.dependencies(session, actor.business_id, str(row.id))
+        dto["warnings"] = [f"{deps['active_count']} active product(s) use {row.name} and cannot be sold until it is "
+                           "re-activated or removed from their recipe/options"] if deps["active_count"] else []
+        dto["affected_products"] = [p["name"] for p in deps["products"] if p["active"] and p["track_ingredients"]]
+    return dto
+
+
+def ingredient_dependencies(session: Session, actor: Actor, ingredient_id: str) -> dict[str, Any]:
+    """Active products that use an ingredient (recipe or choice effect) and the current status (8, 31)."""
+    actor.require(PermissionKey.INGREDIENTS_VIEW)
+    iid = parse_uuid(ingredient_id, "ingredient")
+    row = ProductRepository(session).ingredient(iid)
+    if row is None or row.business_id != actor.business_id:
+        raise not_found("ingredient")
+    deps = availability_service.dependencies(session, actor.business_id, str(iid))
+    level = InventoryRepository(session).levels_for(actor.business_id, [StockKey(SubjectType.INGREDIENT, str(iid))])
+    lvl = next(iter(level.values()), None)
+    deps["status"] = lvl.status().value if lvl else "out"
+    deps["available"] = str(lvl.available) if lvl else "0"
+    deps["name"], deps["unit"] = row.name, row.unit
+    return deps
+
+
+def recipe_health(session: Session, actor: Actor) -> dict[str, Any]:
+    """Configuration problems an Admin should fix before cashiers hit them (13)."""
+    actor.require(PermissionKey.INGREDIENTS_VIEW)
+    issues = availability_service.recipe_health(session, actor.business_id, actor.currency)
+    return {"issues": issues, "errors": sum(1 for i in issues if i["severity"] == "error"),
+            "warnings": sum(1 for i in issues if i["severity"] == "warning")}
 
 
 def get_recipe(session: Session, actor: Actor, product_id: str) -> dict[str, Any]:

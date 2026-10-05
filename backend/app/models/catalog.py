@@ -200,6 +200,9 @@ class StockMovementRow(Base):
     reference_id: Mapped[str | None] = text(64, nullable=True)
     actor_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     created_at: Mapped[datetime] = ts(nullable=False)
+    supplier: Mapped[str | None] = text(120, nullable=True)
+    counted_quantity: Mapped[Decimal | None] = quantity(nullable=True)
+    system_quantity: Mapped[Decimal | None] = quantity(nullable=True)
 
 
 class PosSnapshotRow(Base):

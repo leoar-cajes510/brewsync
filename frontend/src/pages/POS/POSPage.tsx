@@ -12,9 +12,9 @@ import DiscountSelector from '../../components/pos/DiscountSelector';
 import CheckoutModal from '../../components/pos/CheckoutModal';
 import { cartReducer } from '../../stores/cartStore';
 import { useAuth, can } from '../../stores/authStore';
-import { ApiError, errorMessage, newIdempotencyKey } from '../../services/api';
+import { ApiError, errorMessage, isUnknownOutcome, newIdempotencyKey } from '../../services/api';
 import * as catalogApi from '../../services/productService';
-import { createOrder, quote, type OrderInput } from '../../services/orderService';
+import { createOrder, quote, submissionStatus, type OrderInput } from '../../services/orderService';
 import type { CartLine, OrderType, SelectedChoice } from '../../types/order';
 import type { Category, ChoiceGroup, Product } from '../../types/product';
 import type { DiscountDto, OrderDto, QuoteDto } from '../../types/api';
@@ -26,6 +26,30 @@ import { useFeatureSettings } from '../../stores/featureSettingsStore';
 import '../../components/pos/pos.css';
 
 const ALL = 'all';
+
+/** A checkout whose outcome is unknown (timeout): resolved with the SAME key and payload, never resent
+ *  as a new order. Kept in sessionStorage so a page reload cannot lose it (10, 11). */
+interface PendingSubmission {
+  key: string;
+  input: OrderInput;
+}
+const PENDING_KEY = 'brewsync.pendingOrder';
+function loadPending(): PendingSubmission | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_KEY);
+    return raw ? (JSON.parse(raw) as PendingSubmission) : null;
+  } catch {
+    return null;
+  }
+}
+function savePending(value: PendingSubmission | null) {
+  try {
+    if (value) sessionStorage.setItem(PENDING_KEY, JSON.stringify(value));
+    else sessionStorage.removeItem(PENDING_KEY);
+  } catch {
+    /* storage unavailable: the pending state lives for this page only */
+  }
+}
 
 function useClock() {
   const [now, setNow] = useState(() => new Date());
@@ -51,7 +75,7 @@ interface Menu {
 
 /** POS menu from the API: active + available products, their choice groups and stock. */
 async function loadMenu(): Promise<Menu> {
-  const { categories, products, choice_groups: groups, discounts, stock: levels } = await catalogApi.getPosMenu();
+  const { categories, products, choice_groups: groups, discounts, stock: levels, availability = {} } = await catalogApi.getPosMenu();
   const groupById = new Map<string, ChoiceGroup>(
     groups
       .filter((g) => g.active !== false)
@@ -89,6 +113,8 @@ async function loadMenu(): Promise<Menu> {
           stock: level ? Number(level.available) : 0,
           tracked: p.track_units,
           lowStockThreshold: level ? Number(level.low_stock_threshold) : undefined,
+          unavailableReasons: availability[p.id] && !availability[p.id].sellable ? availability[p.id].reasons : [],
+          lowIngredients: availability[p.id]?.low_stock ?? [],
           image: p.image_url ?? '',
           choiceGroups: p.choice_group_ids.map((id) => groupById.get(id)).filter((g): g is ChoiceGroup => !!g),
         };
@@ -148,10 +174,16 @@ export default function POSPage() {
     error: null,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [linesVersion, setLinesVersion] = useState(0);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [placed, setPlaced] = useState<OrderDto | null>(null);
   // Same key for retries of the same cart; a new cart gets a new key.
   const orderKey = useRef<string | null>(null);
+  const [pending, setPending] = useState<PendingSubmission | null>(() => loadPending());
+  const updatePending = (value: PendingSubmission | null) => {
+    savePending(value);
+    setPending(value);
+  };
 
   const refreshMenu = useCallback(async () => {
     setMenuError(null);
@@ -168,7 +200,7 @@ export default function POSPage() {
 
   // Server-authoritative totals: re-quote whenever the cart or discount changes.
   useEffect(() => {
-    orderKey.current = null;
+    if (!loadPending()) orderKey.current = null; // an unresolved submission keeps its key
     setOrderError(null);
     if (lines.length === 0) {
       setPricing({ status: 'idle', quote: null, error: null });
@@ -185,7 +217,7 @@ export default function POSPage() {
       cancelled = true;
       window.clearTimeout(id);
     };
-  }, [lines, orderType, discountId, identification]);
+  }, [lines, orderType, discountId, identification, linesVersion]);
 
   const products = menu?.products ?? [];
   const categories = menu?.categories ?? [];
@@ -234,34 +266,70 @@ export default function POSPage() {
     setSelectedProductId(null);
   };
 
-  const describeStockError = (err: ApiError) => {
-    const shortfalls = Object.keys((err.details.shortfalls as Record<string, string>) ?? {});
-    const names = shortfalls
-      .map((k) => products.find((p) => k.endsWith(p.id))?.name)
-      .filter(Boolean)
-      .join(', ');
-    return names ? `Not enough stock for: ${names}.` : 'Not enough stock for one or more items.';
+  const cartAvailability = pricing.quote?.availability;
+  const cartBlocked = !!cartAvailability && !cartAvailability.ok;
+  const cartReasons = cartAvailability && !cartAvailability.ok
+    ? [...cartAvailability.shortfalls.map((s) => s.message), ...cartAvailability.issues.map((i) => i.message)]
+    : [];
+
+  const finishPlaced = (order: OrderDto) => {
+    orderKey.current = null;
+    updatePending(null);
+    resetOrder();
+    setPlaced(order);
+    void refreshMenu(); // stock is now reserved
   };
 
-  const placeOrder = async () => {
-    if (lines.length === 0 || submitting) return;
-    orderKey.current ??= newIdempotencyKey();
+  const submit = async (submission: PendingSubmission) => {
     setSubmitting(true);
     setOrderError(null);
     try {
-      const order = await createOrder(toOrderInput(lines, orderType, discountId, identification), orderKey.current);
-      orderKey.current = null;
-      resetOrder();
-      setPlaced(order);
-      void refreshMenu(); // stock is now reserved
+      finishPlaced(await createOrder(submission.input, submission.key));
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'INSUFFICIENT_STOCK') {
-        setOrderError(describeStockError(err));
-        void refreshMenu();
-      } else setOrderError(errorMessage(err));
+      if (isUnknownOutcome(err)) {
+        // The order may exist. Keep the key + payload; the next attempt replays or resolves it.
+        updatePending(submission);
+        setOrderError('No answer from the server — the order may or may not have been created. Press "Check order" to find out; it will never be charged twice.');
+      } else {
+        updatePending(null);
+        orderKey.current = null;
+        if (err instanceof ApiError && ['INSUFFICIENT_STOCK', 'RECIPE_INVALID', 'CART_STALE'].includes(err.code)) {
+          void refreshMenu();
+          setLinesVersion((v) => v + 1); // re-quote so the cart shows current totals/availability
+        }
+        setOrderError(errorMessage(err));
+      }
     } finally {
       setSubmitting(false);
     }
+  };
+
+  /** Resolve an unknown outcome: the lookup waits for any in-flight request, then answers. */
+  const resolvePending = async () => {
+    if (!pending || submitting) return;
+    setSubmitting(true);
+    setOrderError(null);
+    try {
+      const status = await submissionStatus(pending.key);
+      if (status.status === 'created' && status.order) {
+        finishPlaced(status.order);
+        return;
+      }
+      setSubmitting(false);
+      await submit(pending); // not created: send the SAME request again (same key)
+    } catch (err) {
+      setOrderError(`${errorMessage(err)} The earlier order is still unresolved.`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const placeOrder = async () => {
+    if (pending) return void resolvePending();
+    if (lines.length === 0 || submitting || cartBlocked || pricing.status !== 'ready' || !pricing.quote) return;
+    orderKey.current ??= newIdempotencyKey();
+    const input = { ...toOrderInput(lines, orderType, discountId, identification), expected_total: pricing.quote.total };
+    await submit({ key: orderKey.current, input });
   };
 
   let productArea;
@@ -319,7 +387,9 @@ export default function POSPage() {
         discountLabel={discount?.name ?? null}
         pricing={pricing.status}
         submitting={submitting}
-        error={orderError ?? pricing.error}
+        error={orderError ?? pricing.error ?? (cartReasons.length ? `Cannot place this order: ${cartReasons.join('; ')}` : null)}
+        blocked={cartBlocked && !pending}
+        chargeLabel={pending ? 'Check order' : undefined}
         onIncrement={(key) => dispatch({ type: 'increment', key })}
         onDecrement={(key) => dispatch({ type: 'decrement', key })}
         onRemove={(key) => (prefs.confirmRemoveCartItem ? setRemoving(key) : dispatch({ type: 'remove', key }))}

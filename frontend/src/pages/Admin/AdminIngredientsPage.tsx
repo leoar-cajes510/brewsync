@@ -27,7 +27,8 @@ import '../../components/admin/ingredients/ingredients.css';
 const ALL = '__all__';
 const PAGE_SIZE = 10;
 
-const STATUS: Record<string, StockStatus> = { in_stock: 'in', low: 'low', out: 'out' };
+// Server status (available = on hand − reserved vs threshold); never recomputed in the browser.
+const STATUS: Record<string, StockStatus> = { in: 'in', in_stock: 'in', low: 'low', out: 'out' };
 
 function fromDto(d: IngredientDto): Ingredient {
   return {
@@ -41,7 +42,9 @@ function fromDto(d: IngredientDto): Ingredient {
     threshold: Number(d.stock?.low_stock_threshold ?? 0),
     notes: d.notes,
     active: d.active,
-    status: d.stock ? STATUS[d.stock.status] : undefined,
+    status: d.stock ? STATUS[d.stock.status] : 'out',
+    reserved: Number(d.stock?.reserved ?? 0),
+    usedBy: d.used_by ?? [],
     updatedAt: new Date(),
     movements: [],
   };
@@ -56,7 +59,15 @@ function movementFromDto(m: StockMovementDto): IngredientMovement {
     delta: Number(m.delta_on_hand),
     balanceAfter: Number(m.on_hand_after),
     reason: m.reason ?? (MOVEMENT_TYPE[m.type] ? undefined : m.type),
-    note: m.note ?? undefined,
+    note:
+      [
+        m.supplier ? `Supplier: ${m.supplier}` : null,
+        m.unit_cost ? `₱${Number(m.unit_cost)}/unit` : null,
+        m.counted_quantity != null ? `Counted ${Number(m.counted_quantity)} vs system ${Number(m.system_quantity)}` : null,
+        m.note,
+      ]
+        .filter(Boolean)
+        .join(' · ') || undefined,
     at: new Date(m.created_at),
   };
 }
@@ -68,12 +79,13 @@ function nextCode(list: Ingredient[]): string {
 }
 
 /** UI reason → server stock action (restock / adjust / correct / waste). Stock math stays on the server. */
-function stockRequest(change: StockChange): { action: 'restock' | 'adjust' | 'correct' | 'waste'; body: Record<string, string | undefined> } {
-  const note = [change.reason, change.note].filter(Boolean).join(' · ') || undefined;
+function stockRequest(change: StockChange): { action: inventoryApi.IngredientAction; body: Record<string, string | boolean | undefined> } {
+  const note = change.note || undefined;
   const qty = String(Math.abs(change.delta));
-  if (change.mode === 'restock') return { action: 'restock', body: { quantity: qty, note } };
-  if (change.reason === 'Count Correction') return { action: 'correct', body: { delta: String(change.delta), reason: 'Count correction', note: change.note || undefined } };
-  if (change.reason === 'Spoilage / Expired' && change.delta < 0) return { action: 'waste', body: { quantity: qty, note: change.note || undefined } };
+  if (change.mode === 'restock')
+    return { action: 'restock', body: { quantity: qty, note, unit_cost: change.unitCost, supplier: change.supplier, update_unit_cost: change.updateCost || undefined } };
+  if (change.mode === 'waste') return { action: 'waste', body: { quantity: qty, reason: change.reason, note } };
+  if (change.mode === 'count') return { action: 'count', body: { counted_quantity: String(change.counted ?? 0), reason: change.reason, note } };
   const reason = change.reason === 'Damaged' ? 'damaged' : change.reason === 'Lost' ? 'lost' : 'other';
   return { action: 'adjust', body: { delta: String(change.delta), reason, note } };
 }
@@ -103,10 +115,12 @@ export default function AdminIngredientsPage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const clearFeedback = useCallback(() => setFeedback(null), []);
 
+  const [health, setHealth] = useState<inventoryApi.RecipeHealthDto | null>(null);
   const refresh = useCallback(async () => {
     try {
       setIngredients((await inventoryApi.listIngredients()).map(fromDto));
       setLoadError(null);
+      inventoryApi.recipeHealth().then(setHealth, () => setHealth(null)); // advisory; never blocks the page
     } catch (err) {
       setLoadError(errorMessage(err));
     } finally {
@@ -280,6 +294,20 @@ export default function AdminIngredientsPage() {
 
   return (
     <div className="admin-ingredients">
+      {health && health.issues.length > 0 && (
+        <div className={`availability-note recipe-health ${health.errors ? 'availability-note--error' : 'availability-note--warning'}`} role="status">
+          <strong>
+            Recipe health: {health.errors} problem{health.errors === 1 ? '' : 's'}
+            {health.warnings ? `, ${health.warnings} warning${health.warnings === 1 ? '' : 's'}` : ''} — fix these before cashiers hit them
+          </strong>
+          <ul>
+            {health.issues.slice(0, 8).map((i, n) => (
+              <li key={n}>{i.message}</li>
+            ))}
+            {health.issues.length > 8 && <li>…and {health.issues.length - 8} more</li>}
+          </ul>
+        </div>
+      )}
       <section className="ing-kpis" aria-label="Ingredients summary">
         {kpis.map(({ key, label, value, sub, icon: Icon, tone, tag }) => (
           <article key={key} className={`ing-kpi ${tone ? `ing-kpi--${tone}` : ''}`}>
@@ -403,7 +431,13 @@ export default function AdminIngredientsPage() {
           deleting &&
           (deleting.active === false
             ? `“${deleting.name}” will be available for recipes and stock again.`
-            : `Ingredients cannot be deleted because stock history references them. “${deleting.name}” will be deactivated${usedIn(deleting) ? ` (used in ${usedIn(deleting)} recipe${usedIn(deleting) === 1 ? '' : 's'})` : ''}; you can reactivate it later.`)
+            : `Ingredients cannot be deleted because stock history references them. “${deleting.name}” will be deactivated; you can reactivate it later.${
+                (deleting.usedBy ?? []).length
+                  ? ` ⚠ ${deleting.usedBy!.length} active product${deleting.usedBy!.length === 1 ? '' : 's'} use it and will become unavailable: ${deleting.usedBy!.join(', ')}.`
+                  : usedIn(deleting)
+                    ? ` It is in ${usedIn(deleting)} recipe${usedIn(deleting) === 1 ? '' : 's'}.`
+                    : ''
+              }`)
         }
         confirmLabel={deleting?.active === false ? 'Reactivate' : 'Deactivate'}
         danger={deleting?.active !== false}

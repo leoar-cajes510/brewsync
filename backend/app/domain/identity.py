@@ -359,7 +359,7 @@ class TerminalStatus(StrEnum):
     PENDING_ACTIVATION = "pending_activation"
     ACTIVE = "active"
     INACTIVE = "inactive"
-    REVOKED = "revoked"  # trigger not specified in the docs; no transition modelled
+    REVOKED = "revoked"  # permanent: lost, stolen or retired device (hardening release)
 
 
 @dataclass(slots=True)
@@ -384,6 +384,12 @@ class Terminal:
         if self.status is not TerminalStatus.ACTIVE:
             raise InvalidStateTransition(f"terminal is {self.status}")
         self.status = TerminalStatus.INACTIVE
+
+    def revoke(self) -> None:
+        """Permanent: a revoked terminal can never be activated again (register a new one)."""
+        if self.status is TerminalStatus.REVOKED:
+            raise InvalidStateTransition("terminal is already revoked")
+        self.status = TerminalStatus.REVOKED
 
     def reactivate(self) -> None:
         if self.status is not TerminalStatus.INACTIVE:

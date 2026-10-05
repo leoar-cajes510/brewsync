@@ -13,6 +13,7 @@ import { ActionFeedback } from '../../components/receipts/ReceiptPrinter';
 import type { Transaction } from '../../types/receipt';
 import type { DocumentDto, HistoryOrderDto } from '../../types/api';
 import { errorMessage } from '../../services/api';
+import { formatPeso } from '../../utils/currency';
 import { history, historyDetail, refundOrder } from '../../services/orderService';
 import { printDocument } from '../../services/documentService';
 import { receiptTotals } from '../../utils/receipt';
@@ -133,15 +134,15 @@ export default function HistoryPage() {
 
   // Success is reported only after the server recorded the refund; the list and the receipt
   // (now marked refunded) are reloaded from the server.
-  const refund = async (t: Transaction, reason: string, idempotencyKey: string) => {
-    const updated = await refundOrder(t.id, reason, idempotencyKey);
+  const refund = async (t: Transaction, reason: string, idempotencyKey: string, amount?: string) => {
+    const updated = await refundOrder(t.id, reason, idempotencyKey, amount);
     setDocuments((prev) => {
       const next = { ...prev };
       delete next[t.id];
       return next;
     });
     await refresh();
-    setFeedback(`Transaction #${updated.number} refunded`);
+    setFeedback(amount ? `Refunded ${formatPeso(Number(amount))} on transaction #${updated.number}` : `Transaction #${updated.number} refunded`);
   };
 
   let table;

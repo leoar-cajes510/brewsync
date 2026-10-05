@@ -63,6 +63,13 @@ export function onSessionEnded(listener: SessionEndListener): () => void {
   return () => sessionEndListeners.delete(listener);
 }
 
+const REQUEST_TIMEOUT_MS = 25_000;
+
+/** The request may or may not have taken effect on the server (no answer / gateway failure). */
+export function isUnknownOutcome(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 0 || error.status >= 500);
+}
+
 export function newIdempotencyKey(): string {
   return crypto.randomUUID();
 }
@@ -90,14 +97,23 @@ export async function request<T>(method: string, path: string, options: RequestO
   Object.assign(headers, options.headers ?? {});
 
   let response: Response;
+  // A request that hangs must not leave the cashier guessing forever: give up after a while and
+  // let the caller resolve the outcome (idempotent retry / submission lookup).
+  const controller = typeof AbortController !== 'undefined' && !options.file ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS) : null;
   try {
     response = await fetch(`${BASE_URL}${path}`, {
       method,
       headers,
       body: options.file ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
+      signal: controller?.signal,
     });
   } catch {
+    if (controller?.signal.aborted)
+      throw new ApiError(0, 'NETWORK_TIMEOUT', 'The BrewSync server did not answer in time. Check the connection and try again.');
     throw new ApiError(0, 'NETWORK_ERROR', 'Cannot reach the BrewSync server. Check the connection and try again.');
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 
   const text = await response.text();

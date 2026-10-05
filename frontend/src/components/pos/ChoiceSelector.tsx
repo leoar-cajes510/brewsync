@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check } from 'lucide-react';
 import Button from '../ui/Button';
 import Modal from '../ui/Modal';
 import type { ChoiceGroup, Product } from '../../types/product';
 import type { SelectedChoice } from '../../types/order';
 import { formatPeso } from '../../utils/currency';
+import { quote } from '../../services/orderService';
+import { errorMessage } from '../../services/api';
+import type { AvailabilityDto } from '../../types/api';
+
+type Check = { status: 'idle' | 'checking' | 'done' | 'error'; availability?: AvailabilityDto; error?: string };
 
 interface ChoiceSelectorProps {
   product: Product | null;
@@ -58,6 +63,33 @@ function ChoiceSelectorBody({ product, onClose, onConfirm }: ChoiceSelectorProps
   );
   const unitPrice = product.price + choices.reduce((sum, c) => sum + c.priceDelta, 0);
 
+  // Ask the server whether THIS configuration can be made now (same rule as order creation; 4, 5, 32).
+  const selectionKey = JSON.stringify(selected);
+  const [check, setCheck] = useState<Check>({ status: 'idle' });
+  useEffect(() => {
+    if (missing.length > 0) {
+      setCheck({ status: 'idle' });
+      return;
+    }
+    let cancelled = false;
+    setCheck((c) => ({ ...c, status: 'checking' }));
+    const selections = Object.fromEntries(Object.entries(selected).filter(([, ids]) => ids.length > 0));
+    const id = window.setTimeout(() => {
+      quote({ order_type: 'takeout', lines: [{ product_id: product.id, quantity: 1, selections }] })
+        .then((q) => !cancelled && setCheck({ status: 'done', availability: q.availability }))
+        .catch((err) => !cancelled && setCheck({ status: 'error', error: errorMessage(err) }));
+    }, 200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectionKey, product.id, missing.length]);
+  const availability = check.availability;
+  const reasons = availability && !availability.ok ? [...availability.shortfalls.map((s) => s.message), ...availability.issues.map((i) => i.message)] : [];
+  const blocked = check.status === 'error' || reasons.length > 0;
+  const low = availability?.ok ? availability.requirements.filter((r) => r.status === 'low').map((r) => r.name) : [];
+
   return (
     <Modal
       open
@@ -67,13 +99,36 @@ function ChoiceSelectorBody({ product, onClose, onConfirm }: ChoiceSelectorProps
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
-          <Button variant="primary" disabled={missing.length > 0} title={missing.length ? `Choose ${missing.map((g) => g.name).join(', ')}` : undefined} onClick={() => onConfirm(product, choices)}>
-            {missing.length ? `Choose ${missing[0].name}` : `Add to Order · ${formatPeso(unitPrice)}`}
+          <Button
+            variant="primary"
+            disabled={missing.length > 0 || blocked || check.status === 'checking'}
+            title={missing.length ? `Choose ${missing.map((g) => g.name).join(', ')}` : blocked ? 'This configuration cannot be made right now' : undefined}
+            onClick={() => onConfirm(product, choices)}
+          >
+            {missing.length ? `Choose ${missing[0].name}` : blocked ? 'Unavailable' : `Add to Order · ${formatPeso(unitPrice)}`}
           </Button>
         </>
       }
     >
       <div className="choice-selector">
+        {reasons.length > 0 && (
+          <div className="availability-note availability-note--error" role="alert">
+            <strong>Not available with these choices:</strong>
+            <ul>
+              {reasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {check.status === 'error' && (
+          <div className="availability-note availability-note--error" role="alert">
+            Could not check availability: {check.error}
+          </div>
+        )}
+        {low.length > 0 && (
+          <div className="availability-note availability-note--warning">Low stock: {low.join(', ')} (still available)</div>
+        )}
         {product.choiceGroups.map((group) => (
           <section key={group.id} className="choice-group">
             <div className="choice-group__header">

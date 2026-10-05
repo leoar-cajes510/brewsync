@@ -197,8 +197,8 @@ def update_product(session: Session, actor: Actor, product_id: str, data: dict[s
     row.updated_at = now()
     session.flush()
     audit(SystemRepository(session), actor, actor.business_id, "product.updated", "product", row.id,
-          before={k: before[k] for k in ("price", "tax_class", "available", "active")},
-          after={k: product_dto(row)[k] for k in ("price", "tax_class", "available", "active")})
+          before={k: before[k] for k in ("name", "price", "tax_class", "available", "active", "category_id")},
+          after={k: product_dto(row)[k] for k in ("name", "price", "tax_class", "available", "active", "category_id")})
     return product_dto(row)
 
 
@@ -427,6 +427,14 @@ def delete_category(session: Session, actor: Actor, category_id: str) -> dict[st
     return {"id": str(cid), "deleted": True}
 
 
+def _group_audit_state(repo: ProductRepository, row: Any, options: list[Any]) -> dict[str, Any]:
+    """Before/after of a choice group for the audit trail: prices and ingredient effects (29)."""
+    effects = repo.option_effects(o.id for o in options)
+    return {"name": row.name, "active": row.active, "required": row.required,
+            "options": [{"id": str(o.id), "name": o.name, "price_delta": f"{Decimal(o.price_delta):.2f}", "active": o.active,
+                         "effects": [_effect_dto(e) for e in effects.get(str(o.id), ())]} for o in options]}
+
+
 def update_choice_group(session: Session, actor: Actor, group_id: str, data: dict[str, Any]) -> dict[str, Any]:
     """Edit a choice group and its options (API §3 PATCH /choice-groups/{id}).
 
@@ -442,6 +450,7 @@ def update_choice_group(session: Session, actor: Actor, group_id: str, data: dic
     if row is None or row.business_id != actor.business_id:
         raise not_found("choice group")
     existing = {o.id: o for o in repo.options([gid])}
+    audit_before = _group_audit_state(repo, row, list(existing.values()))
     options_in = objects(data.get("options"), "options") if data.get("options") is not None else None
     planned: list[tuple[ChoiceOptionRow | None, dict[str, Any]]] = []
     if options_in is not None:
@@ -497,8 +506,7 @@ def update_choice_group(session: Session, actor: Actor, group_id: str, data: dic
         if effs is not None:
             repo.replace_option_effects(uuid.UUID(opt.id), effs)
     audit(SystemRepository(session), actor, actor.business_id, "choice_group.updated", "choice_group", gid,
-          after={"active": group.active, "options": len(options),
-                 "effects_changed": sum(1 for e in effects_in if e is not None)})
+          before=audit_before, after=_group_audit_state(repo, row, repo.options([gid])))
     return next(g for g in list_choice_groups(session, actor) if g["id"] == str(gid))
 
 

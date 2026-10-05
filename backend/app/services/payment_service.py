@@ -17,7 +17,7 @@ from app.domain.money import Money
 from app.domain.payment import PaymentMethod, PaymentRequest, build_payment
 from app.repositories.order_repository import OrderRepository
 from app.repositories.system_repository import SystemRepository
-from app.services.base import Actor, domain_errors, emit, idempotent, now, section
+from app.services.base import Actor, audit, domain_errors, emit, idempotent, now, section
 from app.services.document_service import issue_sales_document
 from app.services.order_service import _load, order_dto
 from app.services.settings_service import payment_settings
@@ -55,6 +55,9 @@ def record_payment(session: Session, actor: Actor, order_id: str, data: dict[str
                                     terminal_id=str(terminal_id), user_id=str(actor.user_id), at=now())
             became_paid = order.add_payment(payment)
         OrderRepository(session).save(row, order)
+        audit(system, actor, actor.business_id, "payment.recorded", "order", order.id,
+              after={"payment_id": payment.id, "method": method.value, "amount": str(payment.amount.amount),
+                     "status": payment.status.value, "payment_status": order.payment_status.value})
         emit(system, actor, actor.business_id, "payment.recorded", "payment", payment.id, 1,
              {"order_id": order.id, "method": method.value, "status": payment.status.value})
         emit(system, actor, actor.business_id, "order.payment_status_changed", "order", order.id, order.version,
@@ -79,6 +82,7 @@ def confirm_payment(session: Session, actor: Actor, order_id: str, payment_id: s
         became_paid = order.confirm_payment(payment_id, str(actor.user_id), now())
     OrderRepository(session).save(row, order)
     system = SystemRepository(session)
+    audit(system, actor, actor.business_id, "payment.confirmed", "order", order.id, after={"payment_id": payment_id})
     emit(system, actor, actor.business_id, "payment.confirmed", "payment", payment_id, 2, {"order_id": order.id})
     dto = order_dto(order)
     if became_paid:
@@ -93,6 +97,8 @@ def void_payment(session: Session, actor: Actor, order_id: str, payment_id: str)
     with domain_errors():
         order.void_payment(payment_id)
     OrderRepository(session).save(row, order)
+    audit(SystemRepository(session), actor, actor.business_id, "payment.voided", "order", order.id,
+          after={"payment_id": payment_id})
     emit(SystemRepository(session), actor, actor.business_id, "payment.voided", "payment", payment_id, 2,
          {"order_id": order.id})
     return order_dto(order)

@@ -17,6 +17,7 @@ interface SalesFeedDto {
     lines: { product: string; code: string; category: string; qty: number; price: number; cost: number }[];
   }[];
   expenses: { date: string; category: string; amount: number }[];
+  data_quality?: { snapshot: number; estimated: number; missing: number; incomplete: number; complete: boolean };
 }
 
 const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -32,6 +33,7 @@ export async function getSalesFeed(range: DateRange): Promise<AnalyticsSource> {
     isDemo: false,
     sales: dto.sales.map((s) => ({ id: s.id, at: new Date(s.at), total: s.total, channel: s.channel, payment: s.payment, lines: s.lines })),
     expenses: dto.expenses.map((e) => ({ date: localDay(e.date), category: e.category, amount: e.amount })),
+    dataQuality: dto.data_quality,
   };
 }
 

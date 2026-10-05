@@ -135,7 +135,24 @@ export default function AdminAnalyticsPage() {
         </div>
       </section>
 
-      <div className="an-banner" role="status">
+      {source.dataQuality && !source.dataQuality.complete && (
+        <div className="an-banner" role="status">
+          <Info size={16} />
+          <span>
+            <b>Cost and margin figures are partly estimated.</b>{' '}
+            {[
+              source.dataQuality.estimated ? `${source.dataQuality.estimated} line(s) predate cost snapshots and use today's recipe and costs` : '',
+              source.dataQuality.missing ? `${source.dataQuality.missing} line(s) have no recipe, so their cost is unknown (shown as ₱0)` : '',
+              source.dataQuality.incomplete ? `${source.dataQuality.incomplete} line(s) use an ingredient with no unit cost` : '',
+            ]
+              .filter(Boolean)
+              .join('; ')}
+            . Sales totals are exact.
+          </span>
+        </div>
+      )}
+
+      <div className="an-banner" role="status" hidden={hasSales}>
         <Info size={16} />
         <span>
           <b>Sales analytics is not available yet.</b> Sales, order, product and expense trends will appear here once the server-side analytics endpoints are connected. Nothing on this page is simulated.

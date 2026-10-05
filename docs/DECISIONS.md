@@ -184,19 +184,19 @@ The **business row and the first Admin are not seeded** — the owner creates th
 ### Q-REF-3 Are refunded items returned to stock?
 - **Options:** (a) Never. (b) Always. (c) Chosen per refund. (d) Per product type (e.g. packaged goods only).
 - **Implementation needs:** whether a refund writes `sale_reversal` movements (on_hand +q, reference_type `refund`); interaction with partial refund granularity (Q-REF-5).
-- **Decision:** ⚠ OPEN
+- **Decision:** ✅ DECIDED (hardening release, 2026-10-06) — (a) **Never.** A sold drink/food item was prepared and its ingredients consumed; a refund returns money only. Returning stock remains possible as a manual, audited stock movement.
 
 ### Q-REF-5 ★ Partial refund granularity *(new in Phase 3B)*
 - **Why it matters:** Q-REF-1 approves partial refunds but not how "partial" is defined. It determines the refund line model, how tax and the order discount are apportioned to the refunded part, and whether restock (Q-REF-3) can be tied to lines.
 - **Options:** (a) By line and quantity only. (b) Arbitrary amount only. (c) Both.
 - **Implementation needs:** `refund_lines` content; server computation of the refundable amount per line (share of the pro-rata discount allocation and tax, Q-TAX-2) or per amount; rounding points (Q-TAX-3); document status transitions (`partially_refunded` / `refunded`).
-- **Decision:** ⚠ OPEN
+- **Decision:** ✅ DECIDED (hardening release, 2026-10-06) — (b) **Arbitrary money amount** (2 dp, > 0, ≤ refundable). Allocation across split payments (the allocation part of Q-REF-2): newest completed payment first, capped by each payment's unrefunded amount. The refund *method* / time limit part of Q-REF-2 stays OPEN (`refunds.method` null). Line-level partial refunds are not offered.
 
 ### Q-CAN-1 ★ Cancelling a paid or partially paid order
 - **Why it matters:** With pay-later (Q-ORD-1) and split payments (Q-PAY-1), an order that is not yet completed may already have one or more completed payments. Cancelling it means returning money, but refunds apply to completed orders (Q-REF-1) and may be switched off (Q-REF-4) — so such an order could get stuck (C-19, AR-14). No sales document exists yet if the order was not fully settled (I-9).
 - **Options:** (a) Not allowed while any completed payment exists — the order must be completed and then refunded. (b) Allowed with an automatic full return of all completed payments in the same transaction, recorded as refund records, only when Refunds is ON. (c) Allowed with an automatic full return regardless of the Refunds toggle (the return is part of cancellation, not a refund action). (d) Allowed only by Admin.
 - **Implementation needs:** cancellation→refund/return linkage across split payments; permission (`pos.cancelOrders` vs `pos.processRefunds`); behaviour when Refunds is OFF; voiding pending payments on cancel; `reservation_release`; document status if a document exists; audit (SR-7).
-- **Decision:** ⚠ OPEN
+- **Decision:** ⚠ OPEN — interim behaviour unchanged: option (a) is enforced (cancel is refused with DECISION_PENDING while a completed payment exists).
 
 ## 5. DISCOUNTS
 
@@ -600,3 +600,15 @@ Where the approved wording needed interpretation to be implementable, the interp
 - **PERMISSIONS.md** — Refunds feature gate, auth-method rules, setup and terminal activation, gap keys listed as Admin-only until Q-SET-3.
 - **DATABASE.md** — C-16 fixes: `stock_levels` (on_hand/reserved), `track_units`/`track_ingredients`, `tax_class`, split `payments`, `refunds` + `refund_lines` + `refund_allocations`, `documents` / `document_series` / `document_prints`, `system_state`, session and terminal activation fields, `offline_submissions`, `pos_snapshots`, `domain_events`, `idempotency_records`, new settings sections; descriptive tables only.
 - **API.md** — setup endpoints, `POST /orders` replaces checkout, split payments, refunds, documents, archive, sync, event stream (transport Q-ARCH-3), settings sections, error codes and Idempotency-Key requirements; descriptive only, no implementation.
+
+
+## Hardening release decisions (2026-10-06)
+
+- **Ingredient availability** is computed at read time with the reservation rule (base → SCALE → REPLACE → ADD → quantity vs `on_hand − reserved`); it is never written into `products.available`. Low stock (≤ threshold) never makes a product unsellable by itself.
+- **Stale cart:** the POS sends the quoted total as `expected_total`; a different server total refuses creation with 409 `CART_STALE`.
+- **Unknown submission outcome:** idempotent requests are serialised per key with a transaction-scoped advisory lock; `GET /orders/submissions/{key}` waits for an in-flight request and answers `created` / `not_created`.
+- **Historical cost:** each order item freezes per-unit ingredient use and unit cost (`order_items.cost_snapshot`) plus the category name. Older orders are reported as estimated.
+- **Receiving:** optional supplier and unit cost; changing the ingredient's current cost is an explicit, audited opt-in (Q-ING-3 costing method remains OPEN — no averaging).
+- **Waste reasons:** expired · spilled · damaged · spoiled · preparation · other (note required).
+- **Physical count:** sets on_hand to the counted quantity through a correction movement storing counted/system quantity; refused below reserved stock.
+- **Terminal revocation:** `revoked` is permanent (no re-activation); every request also checks that the session's terminal is still active.

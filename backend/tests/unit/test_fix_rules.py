@@ -119,7 +119,7 @@ class RecipeDeductionTests(unittest.TestCase):
 
     def setUp(self):
         self.product = SimpleNamespace(business_id=None, track_ingredients=True)
-        repo = mock.Mock(product=mock.Mock(return_value=self.product))
+        repo = mock.Mock(product=mock.Mock(return_value=self.product), recipes=mock.Mock(return_value={}))
         for target, value in (("ProductRepository", mock.Mock(return_value=repo)), ("SystemRepository", mock.Mock()),
                               ("audit", mock.Mock())):
             p = mock.patch.object(inventory_service, target, value)

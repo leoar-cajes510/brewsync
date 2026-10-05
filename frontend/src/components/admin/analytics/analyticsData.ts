@@ -35,6 +35,8 @@ export interface AnalyticsSource {
   sales: SaleRecord[];
   expenses: ExpenseRecord[];
   isDemo: boolean;
+  /** How trustworthy the cost/margin figures are (server): snapshot = frozen at sale. */
+  dataQuality?: { snapshot: number; estimated: number; missing: number; incomplete: number; complete: boolean };
 }
 
 /** Real business data. Empty on a fresh system — no sales/expense store exists yet. */
