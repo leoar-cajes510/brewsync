@@ -112,11 +112,12 @@ _log = logging.getLogger("brewsync")
 
 
 async def database_error_handler(_: Request, exc: Exception) -> JSONResponse:
-    """The transaction was rolled back (deadlock, lock/statement timeout, dropped connection). Nothing
-    was written, so the client may retry the SAME request (same Idempotency-Key). No SQL is exposed."""
+    """A database failure (deadlock, lock/statement timeout, dropped connection). Usually rolled back, but a
+    connection lost during COMMIT is a genuinely unknown outcome, so the client resolves it by retrying
+    the SAME request (same Idempotency-Key). No SQL is exposed."""
     _log.warning("database error: %s", type(getattr(exc, "orig", exc)).__name__)
     return JSONResponse(status_code=503, content={"error": {
-        "code": "SERVICE_BUSY", "message": "The server was busy and nothing was saved. Please try again.", "details": {}}})
+        "code": "SERVICE_BUSY", "message": "The server was busy and the change may not have been saved. Check before trying again (a retry of the same request is safe).", "details": {}}})
 
 
 async def conflict_error_handler(_: Request, exc: Exception) -> JSONResponse:
@@ -131,4 +132,4 @@ async def conflict_error_handler(_: Request, exc: Exception) -> JSONResponse:
 async def unexpected_error_handler(_: Request, exc: Exception) -> JSONResponse:
     _log.exception("unhandled error", exc_info=exc)
     return JSONResponse(status_code=500, content={"error": {
-        "code": "INTERNAL_ERROR", "message": "Something went wrong on the server. Nothing was saved.", "details": {}}})
+        "code": "INTERNAL_ERROR", "message": "Something went wrong on the server; the change may not have been saved. Check before trying again.", "details": {}}})

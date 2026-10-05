@@ -36,19 +36,20 @@ interface PendingSubmission {
   key: string;
   input: OrderInput;
 }
-const PENDING_KEY = 'brewsync.pendingOrder';
-function loadPending(): PendingSubmission | null {
+// Keyed by user: after a lock/sign-out another cashier on the same tab never sees (or replays) it.
+const pendingStorageKey = (userId: string) => `brewsync.pendingOrder.${userId}`;
+function loadPending(userId: string): PendingSubmission | null {
   try {
-    const raw = sessionStorage.getItem(PENDING_KEY);
+    const raw = sessionStorage.getItem(pendingStorageKey(userId));
     return raw ? (JSON.parse(raw) as PendingSubmission) : null;
   } catch {
     return null;
   }
 }
-function savePending(value: PendingSubmission | null) {
+function savePending(userId: string, value: PendingSubmission | null) {
   try {
-    if (value) sessionStorage.setItem(PENDING_KEY, JSON.stringify(value));
-    else sessionStorage.removeItem(PENDING_KEY);
+    if (value) sessionStorage.setItem(pendingStorageKey(userId), JSON.stringify(value));
+    else sessionStorage.removeItem(pendingStorageKey(userId));
   } catch {
     /* storage unavailable: the pending state lives for this page only */
   }
@@ -183,9 +184,19 @@ export default function POSPage() {
   const [placed, setPlaced] = useState<OrderDto | null>(null);
   // Same key for retries of the same cart; a new cart gets a new key.
   const orderKey = useRef<string | null>(null);
-  const [pending, setPending] = useState<PendingSubmission | null>(() => loadPending());
+  const userId = user?.user_id ?? 'anonymous';
+  const [pending, setPending] = useState<PendingSubmission | null>(() => loadPending(userId));
+  // The lookup said "not created" (conclusive: it waits for any in-flight request). Only then may
+  // the cashier discard the unsent order instead of sending it again.
+  const [confirmedNotCreated, setConfirmedNotCreated] = useState(false);
+  useEffect(() => {
+    // The signed-in user can change without this page remounting (lock → another cashier signs in).
+    setPending(loadPending(userId));
+    setConfirmedNotCreated(false);
+  }, [userId]);
   const updatePending = (value: PendingSubmission | null) => {
-    savePending(value);
+    savePending(userId, value);
+    if (!value) setConfirmedNotCreated(false);
     setPending(value);
   };
 
@@ -215,7 +226,7 @@ export default function POSPage() {
 
   // Server-authoritative totals: re-quote whenever the cart or discount changes.
   useEffect(() => {
-    if (!loadPending()) orderKey.current = null; // an unresolved submission keeps its key
+    if (!loadPending(userId)) orderKey.current = null; // an unresolved submission keeps its key
     setOrderError(null);
     if (lines.length === 0) {
       setPricing({ status: 'idle', quote: null, error: null });
@@ -332,6 +343,7 @@ export default function POSPage() {
         finishPlaced(status.order);
         return;
       }
+      setConfirmedNotCreated(true);
       setSubmitting(false);
       await submit(pending); // not created: send the SAME request again (same key)
     } catch (err) {
@@ -339,6 +351,12 @@ export default function POSPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const discardPending = () => {
+    updatePending(null);
+    orderKey.current = null;
+    setOrderError('The unsent order was discarded. Nothing was created; you can place the order again.');
   };
 
   const placeOrder = async () => {
@@ -407,6 +425,7 @@ export default function POSPage() {
         error={orderError ?? pricing.error ?? (cartReasons.length ? `Cannot place this order: ${cartReasons.join('; ')}` : null)}
         blocked={cartBlocked && !pending}
         chargeLabel={pending ? 'Check order' : undefined}
+        onDiscardPending={pending && confirmedNotCreated && !submitting ? discardPending : undefined}
         onIncrement={(key) => dispatch({ type: 'increment', key })}
         onDecrement={(key) => dispatch({ type: 'decrement', key })}
         onRemove={(key) => (prefs.confirmRemoveCartItem ? setRemoving(key) : dispatch({ type: 'remove', key }))}

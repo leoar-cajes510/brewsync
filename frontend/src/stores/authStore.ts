@@ -40,6 +40,7 @@ export function useAuth(): AuthState {
 export const hasDevice = () => deviceStore.get() !== null;
 /** The signed-in user's server permissions (empty when signed out). */
 export const currentPermissions = (): string[] => state.user?.permissions ?? [];
+export const currentUserId = (): string | null => state.user?.user_id ?? null;
 
 export function can(user: MeDto | null, permission: string): boolean {
   return !!user && user.permissions.includes(permission);

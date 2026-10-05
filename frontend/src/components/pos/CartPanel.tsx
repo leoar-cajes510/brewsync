@@ -43,6 +43,8 @@ interface CartPanelProps {
   blocked?: boolean;
   /** Replaces the Place Order label (e.g. "Check order" while a submission is unresolved). */
   chargeLabel?: string;
+  /** Offered only after the server confirmed an unresolved order was NOT created. */
+  onDiscardPending?: () => void;
 }
 
 const orderTypes = [
@@ -72,6 +74,7 @@ export default function CartPanel({
   onCharge,
   blocked = false,
   chargeLabel,
+  onDiscardPending,
 }: CartPanelProps) {
   const empty = lines.length === 0;
 
@@ -158,6 +161,14 @@ export default function CartPanel({
         {error && (
           <div className="api-status api-status--error" role="alert">
             {error}
+            {onDiscardPending && (
+              <>
+                {' '}
+                <button type="button" className="link-btn" onClick={onDiscardPending}>
+                  Discard unsent order
+                </button>
+              </>
+            )}
           </div>
         )}
         <Button

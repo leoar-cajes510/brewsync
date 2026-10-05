@@ -9,6 +9,7 @@ import type { OrderDto, PaymentResultDto } from '../../types/api';
 import { errorMessage, isUnknownOutcome, newIdempotencyKey } from '../../services/api';
 import { recordPayment, type PaymentInput } from '../../services/paymentService';
 import { getOrder } from '../../services/orderService';
+import { currentUserId as getAuthUserId } from '../../stores/authStore';
 import { notify } from '../../stores/notificationStore';
 import { useFeatureSettings } from '../../stores/featureSettingsStore';
 import { usePreferenceSettings } from '../../stores/preferenceSettingsStore';
@@ -33,7 +34,9 @@ interface PendingPayment {
   key: string;
   input: PaymentInput;
 }
-const pendingKey = (orderId: string) => `brewsync.pendingPayment.${orderId}`;
+// Keyed by user + order: after a lock/sign-out another cashier never inherits (or replays) it.
+const pendingKey = (orderId: string) => `brewsync.pendingPayment.${currentUserId()}.${orderId}`;
+const currentUserId = () => getAuthUserId() ?? 'anonymous';
 function loadPendingPayment(orderId: string): PendingPayment | null {
   try {
     const raw = sessionStorage.getItem(pendingKey(orderId));
@@ -194,6 +197,27 @@ function CheckoutBody({ order: initial, onClose, onPaid }: Omit<CheckoutModalPro
           <Button onClick={onClose} disabled={submitting}>
             Pay Later
           </Button>
+          {uncertain && (
+            <Button
+              disabled={submitting}
+              title="Reload the order from the server and start this payment again"
+              onClick={() => {
+                // Safe: the fresh balance below already includes the earlier payment if it was
+                // recorded, and the server refuses any payment above the remaining balance.
+                savePendingPayment(order.id, null);
+                attemptKey.current = null;
+                lastInput.current = null;
+                setUncertain(false);
+                setError(null);
+                void getOrder(order.id).then((fresh) => {
+                  setOrder(fresh);
+                  setAmount(fresh.amount_due);
+                });
+              }}
+            >
+              Discard &amp; reload
+            </Button>
+          )}
           <Button variant="primary" disabled={!canConfirm || submitting} onClick={() => void submit()}>
             {submitting
               ? 'Recording…'
