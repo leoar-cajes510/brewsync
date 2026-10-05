@@ -54,11 +54,11 @@ def delete_product(product_id: str, request: Request):  # type: ignore[no-untype
 
 @router.post("/products/{product_id}/image", tags=["catalog"])
 async def upload_product_image(product_id: str, request: Request):  # type: ignore[no-untyped-def]
-    """Raw image body (Content-Type image/png|jpeg|webp, ≤ 2 MB) → object storage; the product keeps
+    """Raw image body (Content-Type image/png|jpeg|webp, ≤ 3 MB) → object storage; the product keeps
     only the public URL (Q-ARCH-2). The previous object is deleted after the new URL committed."""
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > product_image_service.MAX_IMAGE_BYTES:
-        raise AppError("PAYLOAD_TOO_LARGE", 413, "The image must be 2 MB or smaller after optimization.")
+        raise AppError("PAYLOAD_TOO_LARGE", 413, f"The image must be {product_image_service.MAX_IMAGE_MB} MB or smaller after optimization.")
     data = await request.body()
     uploaded: list[str] = []
     try:

@@ -10,7 +10,7 @@ interface ProductImageUploadProps {
   onChange: (image: OptimizedImage | null) => void;
 }
 
-// Picks an image, optimizes it in the browser (≤ 800×800 WEBP) and hands it to the form; the form
+// Picks an image, optimizes it in the browser (≤ 1600 px WEBP) and hands it to the form; the form
 // uploads it to POST /products/{id}/image once the product exists (Q-ARCH-2).
 export default function ProductImageUpload({ value, onChange }: ProductImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -55,7 +55,7 @@ export default function ProductImageUpload({ value, onChange }: ProductImageUplo
           <button type="button" className="image-upload__empty" onClick={pick} disabled={busy}>
             <ImagePlus size={26} />
             <strong>{busy ? 'Optimizing…' : 'Add product image'}</strong>
-            <span>PNG, JPG or WEBP · up to 10 MB · resized to 800×800</span>
+            <span>PNG, JPG or WEBP · up to 10 MB · resized to 1600 px</span>
           </button>
         )}
       </div>

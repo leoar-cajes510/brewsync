@@ -1,17 +1,19 @@
 """Product images (Q-ARCH-2): validate, store in object storage, keep only the public URL on the product.
 
 The browser downsizes and re-encodes images before upload; the server still validates independently
-(declared type, magic bytes, basic structure, size) so a modified client cannot store SVG/HTML or
-oversized files. Storage runs inside the request's transaction: an upload made before a failure is
+(declared type, magic bytes, a full Pillow decode, size) so a modified client cannot store SVG/HTML,
+malformed or oversized files. Storage runs inside the request's transaction: an upload made before a failure is
 removed again by the caller, and the previous object is deleted only after the new URL committed.
 """
 
 from __future__ import annotations
 
+import io
 import uuid
 from collections.abc import Callable
 from typing import Any
 
+from PIL import Image
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError, not_found, validation
@@ -25,8 +27,13 @@ from app.services.storage_service import ObjectStorage
 
 StorageFactory = Callable[[], ObjectStorage]
 
-MAX_IMAGE_BYTES = 2 * 1024 * 1024
+MAX_IMAGE_BYTES = 3 * 1024 * 1024
+MAX_IMAGE_MB = MAX_IMAGE_BYTES // (1024 * 1024)
+# The browser sends at most 1600 px on the longest side; anything far beyond is refused before decoding
+# so a tiny file declaring huge dimensions (decompression bomb) cannot exhaust memory.
+MAX_IMAGE_PIXELS = 4096 * 4096
 EXTENSIONS = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"}
+PIL_FORMATS = {"image/png": {"PNG"}, "image/jpeg": {"JPEG", "MPO"}, "image/webp": {"WEBP"}}
 
 
 def detect_image_type(data: bytes) -> str | None:
@@ -41,6 +48,23 @@ def detect_image_type(data: bytes) -> str | None:
     return None
 
 
+def decodes_as(data: bytes, mime: str) -> bool:
+    """True when Pillow fully decodes ``data`` as the given type within the pixel cap."""
+    try:
+        with Image.open(io.BytesIO(data)) as img:
+            if img.format not in PIL_FORMATS[mime]:
+                return False
+            width, height = img.size
+            if width < 1 or height < 1 or width * height > MAX_IMAGE_PIXELS:
+                return False
+            img.verify()
+        with Image.open(io.BytesIO(data)) as img:  # verify() leaves the image unusable; decode the pixels
+            img.load()
+    except (OSError, SyntaxError, ValueError, Image.DecompressionBombError):
+        return False
+    return True
+
+
 def validate_image(data: bytes, content_type: str | None) -> str:
     declared = (content_type or "").split(";")[0].strip().lower()
     if declared == "image/jpg":
@@ -50,12 +74,14 @@ def validate_image(data: bytes, content_type: str | None) -> str:
     if not data:
         raise validation("The image file is empty.")
     if len(data) > MAX_IMAGE_BYTES:
-        raise AppError("PAYLOAD_TOO_LARGE", 413, "The image must be 2 MB or smaller after optimization.")
+        raise AppError("PAYLOAD_TOO_LARGE", 413, f"The image must be {MAX_IMAGE_MB} MB or smaller after optimization.")
     detected = detect_image_type(data)
     if detected is None:
         raise validation("The file is not a valid PNG, JPG or WEBP image.")
     if detected != declared:
         raise validation("The file content does not match its image type.")
+    if not decodes_as(data, detected):
+        raise validation("The file is not a valid PNG, JPG or WEBP image.")
     return detected
 
 

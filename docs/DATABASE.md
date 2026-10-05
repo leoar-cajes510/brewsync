@@ -114,7 +114,7 @@ A movement that would break `on_hand ≥ 0`, `reserved ≥ 0` or `reserved ≤ o
 | **settings_history** | section, version, data, updated_by, updated_at | Append-only. |
 | **sequences** | name ≤ 64 (`order`, `expense:2026`, `staff`, `product:<category_id>` …), next_value | Incremented with a row lock inside the owning transaction. Sales document numbers use `document_series`, not this table. |
 | **audit_logs** | actor_id null (null = system actor), terminal_id null, action, entity_type, entity_id, before, after, ip, user_agent, created_at | Append-only, immutable (SR-7). Records the ID-capture **event**, never the ID value; never credentials. Read ✱audit.view. |
-| **media** (optional) | url/path, content_type, size, uploaded_by | Product images, business/receipt logo (which prints **⚠ OPEN Q-RCP-4**). Not implemented as a table: product images live in Supabase Storage (bucket `product-images`, Q-ARCH-2) and are referenced by `products.image_url`. |
+| **media** (optional) | url/path, content_type, size, uploaded_by | Product images, business/receipt logo (which prints **⚠ OPEN Q-RCP-4**). Not implemented as a table: product images live in Supabase Storage (bucket `product-images`, Q-ARCH-2) and are referenced by `products.image_url`. Binary image data is never stored in PostgreSQL (no bytea/base64); objects are WEBP/PNG/JPEG ≤ 3 MB at `{business_id}/{product_id}/{uuid}.{ext}`. |
 
 **Settings sections** (`settings_documents.section`)
 

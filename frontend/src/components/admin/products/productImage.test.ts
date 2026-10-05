@@ -1,17 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { checkInputFile, fitWithin, MAX_INPUT_BYTES } from './productImage';
+import { checkInputFile, fitWithin, MAX_DIMENSION, MAX_INPUT_BYTES, MAX_UPLOAD_BYTES, optimizeProductImage, WEBP_QUALITY } from './productImage';
 import { deleteProductImage, uploadProductImage } from '../../../services/productService';
 
 const file = (type: string, size = 10) => new File([new Uint8Array(size)], 'x', { type });
 
 describe('product image optimization rules', () => {
-  it('fits inside 800×800 keeping the aspect ratio', () => {
-    expect(fitWithin(1600, 1200)).toEqual({ width: 800, height: 600 });
-    expect(fitWithin(1000, 4000)).toEqual({ width: 200, height: 800 });
+  it('uses the approved high-quality settings', () => {
+    expect(MAX_DIMENSION).toBe(1600);
+    expect(WEBP_QUALITY).toBe(0.92);
+    expect(MAX_UPLOAD_BYTES).toBe(3 * 1024 * 1024);
+  });
+
+  it('fits the longest side within 1600 px keeping the aspect ratio', () => {
+    expect(fitWithin(4000, 3000)).toEqual({ width: 1600, height: 1200 });
+    expect(fitWithin(1000, 4000)).toEqual({ width: 400, height: 1600 });
+    expect(fitWithin(6000, 6000)).toEqual({ width: 1600, height: 1600 });
   });
 
   it('never upscales smaller images', () => {
     expect(fitWithin(300, 200)).toEqual({ width: 300, height: 200 });
+    expect(fitWithin(1600, 900)).toEqual({ width: 1600, height: 900 });
   });
 
   it('accepts PNG, JPEG and WEBP up to 10 MB only', () => {
@@ -21,6 +29,54 @@ describe('product image optimization rules', () => {
     expect(checkInputFile(file('image/svg+xml'))).toMatch(/PNG, JPG or WEBP/);
     expect(checkInputFile(file('image/gif'))).toMatch(/PNG, JPG or WEBP/);
     expect(checkInputFile(file('image/png', MAX_INPUT_BYTES + 1))).toMatch(/10 MB/);
+  });
+});
+
+describe('optimizeProductImage', () => {
+  const calls: { width: number; height: number; type?: string; quality?: number; drawn?: number[] } = { width: 0, height: 0 };
+  let output: Blob | null;
+
+  beforeEach(() => {
+    output = new Blob([new Uint8Array(100)], { type: 'image/webp' });
+    vi.stubGlobal('URL', { createObjectURL: () => 'blob:preview', revokeObjectURL: () => undefined });
+    vi.stubGlobal('Image', class {
+      naturalWidth = 4000;
+      naturalHeight = 3000;
+      onload: (() => void) | null = null;
+      set src(_: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+    });
+    vi.stubGlobal('document', {
+      createElement: () => ({
+        set width(v: number) { calls.width = v; },
+        set height(v: number) { calls.height = v; },
+        getContext: () => ({ drawImage: (_img: unknown, ...rest: number[]) => { calls.drawn = rest; } }),
+        toBlob: (cb: (b: Blob | null) => void, type: string, quality: number) => {
+          calls.type = type;
+          calls.quality = quality;
+          cb(output);
+        },
+      }),
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('downsizes a 4000×3000 photo to 1600×1200 WEBP at quality 0.92 on a transparent canvas', async () => {
+    const result = await optimizeProductImage(file('image/png'));
+    expect(calls).toMatchObject({ width: 1600, height: 1200, type: 'image/webp', quality: 0.92, drawn: [0, 0, 1600, 1200] });
+    expect(result.blob.type).toBe('image/webp');
+    expect(result.preview).toBe('blob:preview');
+  });
+
+  it('rejects output still over 3 MB', async () => {
+    output = new Blob([new Uint8Array(MAX_UPLOAD_BYTES + 1)], { type: 'image/webp' });
+    await expect(optimizeProductImage(file('image/jpeg'))).rejects.toThrow(/3 MB/);
+  });
+
+  it('accepts the PNG fallback when the browser cannot encode WEBP', async () => {
+    output = new Blob([new Uint8Array(10)], { type: 'image/png' });
+    expect((await optimizeProductImage(file('image/webp'))).blob.type).toBe('image/png');
   });
 });
 

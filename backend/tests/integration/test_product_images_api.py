@@ -2,19 +2,26 @@
 in-memory fake (Supabase is never contacted)."""
 
 import dataclasses
+import io
 import unittest
 import uuid
 
 from db_support import DbTestCase
+from PIL import Image
 
 from app.core.exceptions import AppError
 from app.services import storage_service
 
-import base64
 
-PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
-WEBP = base64.b64decode("UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==")
-JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00" + b"\x00" * 32 + b"\xff\xd9"
+def encode(fmt: str, size: tuple[int, int] = (8, 6), **params) -> bytes:  # type: ignore[no-untyped-def]
+    buf = io.BytesIO()
+    Image.new("RGB", size, (200, 120, 40)).save(buf, fmt, **params)
+    return buf.getvalue()
+
+
+PNG = encode("PNG")
+WEBP = encode("WEBP", quality=92)
+JPEG = encode("JPEG")
 PREFIX = "https://storage.example.invalid/storage/v1/object/public/product-images/"
 
 
@@ -78,6 +85,11 @@ class ProductImageApiTests(DbTestCase):
         self.assertTrue(self.upload(self.ids["latte"], PNG, "image/png").json()["image_url"].endswith(".png"))
         self.assertTrue(self.upload(self.ids["cookie"], JPEG, "image/jpeg").json()["image_url"].endswith(".jpg"))
 
+    def test_high_resolution_webp_within_limit_accepted(self) -> None:
+        hi = encode("WEBP", (1600, 1200), quality=92)
+        url = self.upload(self.ids["latte"], hi, "image/webp").json()["image_url"]
+        self.assertEqual(self.storage.objects[url[len(PREFIX):]][0], hi)
+
     def test_replacement_removes_previous_object(self) -> None:
         latte = self.ids["latte"]
         first = self.upload(latte, WEBP, "image/webp").json()["image_url"]
@@ -101,8 +113,10 @@ class ProductImageApiTests(DbTestCase):
         svg = b'<svg xmlns="http://www.w3.org/2000/svg"></svg>'
         self.assertEqual(self.error_code(self.upload(latte, svg, "image/svg+xml", expect=415)), "UNSUPPORTED_MEDIA_TYPE")
         self.assertEqual(self.error_code(self.upload(latte, svg, "image/png", expect=422)), "VALIDATION_ERROR")
-        big = PNG[:-12] + b"\x00" * (2 * 1024 * 1024) + PNG[-12:]
+        big = PNG[:-12] + b"\x00" * (3 * 1024 * 1024) + PNG[-12:]
         self.assertEqual(self.error_code(self.upload(latte, big, "image/png", expect=413)), "PAYLOAD_TOO_LARGE")
+        malformed = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00" + b"\x00" * 32 + b"\xff\xd9"
+        self.assertEqual(self.error_code(self.upload(latte, malformed, "image/jpeg", expect=422)), "VALIDATION_ERROR")
         self.assertEqual(self.storage.objects, {})
         self.assertIsNone(self.image_url(latte))
 
