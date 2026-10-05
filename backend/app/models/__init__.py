@@ -5,7 +5,7 @@ from app.models.back_office import (  # noqa: F401
     SettingsDocumentRow, SettingsHistoryRow,
 )
 from app.models.catalog import (  # noqa: F401
-    CategoryRow, ChoiceGroupRow, ChoiceOptionRow, DiscountRow, IngredientRow, PosSnapshotRow, ProductChoiceGroupRow,
+    CategoryRow, ChoiceGroupRow, ChoiceOptionEffectRow, ChoiceOptionRow, DiscountRow, IngredientRow, PosSnapshotRow, ProductChoiceGroupRow,
     ProductRow, RecipeLineRow, RecipeRow, StockLevelRow, StockMovementRow,
 )
 from app.models.identity import (  # noqa: F401

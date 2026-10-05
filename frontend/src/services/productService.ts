@@ -1,5 +1,5 @@
 import { api, request } from './api';
-import type { CategoryDto, ChoiceGroupDto, DiscountDto, ProductDto, StockLevelDto, TaxClass } from '../types/api';
+import type { CategoryDto, ChoiceEffectDto, ChoiceGroupDto, DiscountDto, ProductDto, StockLevelDto, TaxClass } from '../types/api';
 
 export const listCategories = () => api.get<CategoryDto[]>('/categories');
 export const createCategory = (name: string, codePrefix: string) =>
@@ -64,6 +64,8 @@ export interface ChoiceOptionInput {
   price_delta: string;
   is_default: boolean;
   active?: boolean;
+  /** Omit to keep the stored effects; [] clears them (needs ingredients.recipes + Ingredient Tracking). */
+  effects?: ChoiceEffectDto[];
 }
 
 export interface ChoiceGroupInput {

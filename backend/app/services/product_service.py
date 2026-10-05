@@ -17,6 +17,7 @@ from app.domain.money import Money
 from app.domain.product import (
     Category, ChoiceGroup, ChoiceOption, Product, SelectionType, generate_product_code, normalize_product_code,
 )
+from app.domain.recipe import ChoiceEffect, EffectMode, validate_option_effects
 from app.domain.tax import TaxClass
 from app.models import CategoryRow, ChoiceGroupRow, ChoiceOptionRow, DiscountRow, ProductRow
 from app.repositories.inventory_repository import InventoryRepository
@@ -202,6 +203,87 @@ def update_product(session: Session, actor: Actor, product_id: str, data: dict[s
 
 
 # --- choice groups -------------------------------------------------------------------------------------------------
+def _option_effects_in(session: Session, actor: Actor, option: dict[str, Any], option_id: uuid.UUID,
+                       gated: list[bool], stored: tuple[ChoiceEffect, ...] = ()) -> tuple[ChoiceEffect, ...] | None:
+    """Parse an option's ``effects`` (R4a.3a). A missing key leaves stored effects unchanged and
+    ``[]`` clears them. Editing effects changes recipe consumption, so it needs the recipe permission
+    and the Ingredient Tracking feature (R4a.7). Every ingredient must belong to this business; an
+    inactive one is accepted only in an effect that is already stored unchanged (like recipes, R4a.5),
+    so deactivating an ingredient never blocks unrelated edits of the group."""
+    if "effects" not in option:
+        return None
+    if not gated:
+        actor.require(PermissionKey.INGREDIENTS_RECIPES)
+        if not feature_on(SystemRepository(session), actor.business_id, "ingredients"):
+            raise AppError("FEATURE_DISABLED", 403, "The Ingredient Tracking feature is off")
+        gated.append(True)
+    repo = ProductRepository(session)
+
+    inactive: list[str] = []
+
+    def ingredient_id(value: Any, field: str) -> str:
+        row = repo.ingredient(parse_uuid(value or "", field))
+        if row is None or row.business_id != actor.business_id:
+            raise not_found("ingredient")
+        if not row.active:
+            inactive.append(row.name)
+        return str(row.id)
+
+    effects = []
+    for e in objects(option["effects"], "effects"):
+        mode = e.get("mode")
+        if mode not in {m.value for m in EffectMode}:
+            raise validation("effect mode must be scale, add or replace")
+        if mode == EffectMode.SCALE.value:  # factor for the whole base recipe; never names an ingredient
+            if e.get("ingredient_id") or e.get("replaces_ingredient_id"):
+                raise validation("a SCALE effect multiplies the whole base recipe and takes no ingredient")
+            with domain_errors():
+                effects.append(ChoiceEffect(str(option_id), EffectMode.SCALE, None, _dec(e.get("quantity"), "quantity")))
+            continue
+        if mode == EffectMode.ADD.value and e.get("replaces_ingredient_id"):
+            raise validation("an ADD effect cannot replace an ingredient")
+        if mode == EffectMode.REPLACE.value and not e.get("replaces_ingredient_id"):
+            raise validation("a REPLACE effect needs the base ingredient it replaces")
+        inactive.clear()
+        replaces = ingredient_id(e.get("replaces_ingredient_id"), "replaced ingredient") if mode == "replace" else None
+        with domain_errors():
+            effect = ChoiceEffect(str(option_id), EffectMode(mode), ingredient_id(e.get("ingredient_id"), "ingredient"),
+                                  _dec(e.get("quantity"), "quantity"), replaces)
+        if inactive and effect not in stored:
+            raise validation(f"ingredient {inactive[0]} is inactive")
+        effects.append(effect)
+    with domain_errors():
+        return validate_option_effects(effects)
+
+
+def _effect_dto(e: ChoiceEffect) -> dict[str, Any]:
+    return {"mode": e.mode.value, "ingredient_id": e.ingredient_id, "replaces_ingredient_id": e.replaces_ingredient_id,
+            "quantity": str(e.quantity)}
+
+
+def _effect_warnings(repo: ProductRepository, actor: Actor, groups: dict[str, Any],
+                     effects: dict[str, tuple[ChoiceEffect, ...]]) -> dict[str, list[str]]:
+    """Per option: linked products that track ingredients but whose base recipe lacks an ingredient
+    a REPLACE effect would replace, so the effect is ignored for them (R4a.3a). Advisory only: a
+    group is shared by many products, so this cannot be a hard validation."""
+    replacing = {oid: {e.replaces_ingredient_id for e in effs if e.mode is EffectMode.REPLACE}
+                 for oid, effs in effects.items()}
+    if not any(replacing.values()):
+        return {}
+    products = {p.id: p for p in repo.products(actor.business_id) if p.deleted_at is None and p.track_ingredients}
+    links = [l for l in repo.group_links(list(products)) if str(l.group_id) in groups]
+    recipes = repo.recipes(list(products))
+    warnings: dict[str, list[str]] = {}
+    for link in links:
+        product = products[link.product_id]
+        recipe = recipes.get(str(product.id))
+        base = {line.ingredient_id for line in (recipe.lines if recipe else ())}
+        for o in groups[str(link.group_id)].options:
+            if (replacing.get(o.id) or set()) - base:
+                warnings.setdefault(o.id, []).append(product.name)
+    return warnings
+
+
 def create_choice_group(session: Session, actor: Actor, data: dict[str, Any]) -> dict[str, Any]:
     actor.require(PermissionKey.CHOICES_MANAGE)
     group_id = uuid.uuid4()
@@ -215,6 +297,8 @@ def create_choice_group(session: Session, actor: Actor, data: dict[str, Any]) ->
                             required=flag(data.get("required"), "required"), min_select=int(data.get("min_select", 0)),
                             max_select=int(data.get("max_select", 1)), options=options,
                             display_name=text(data.get("display_name", ""), "display_name"), description=text(data.get("description", ""), "description"))
+    gated: list[bool] = []
+    effects_in = [_option_effects_in(session, actor, raw, uuid.UUID(o.id), gated) for raw, o in zip(options_in, options)]
     session.add(ChoiceGroupRow(id=group_id, business_id=actor.business_id, code=group.code, name=group.name,
                                display_name=group.display_name, description=group.description,
                                selection_type=group.selection_type.value, required=group.required,
@@ -225,21 +309,30 @@ def create_choice_group(session: Session, actor: Actor, data: dict[str, Any]) ->
                                     price_delta=o.price_delta.amount, is_default=o.is_default, active=True,
                                     sort_order=o.sort_order))
     session.flush()
+    repo = ProductRepository(session)
+    for o, effs in zip(options, effects_in):
+        if effs:
+            repo.replace_option_effects(uuid.UUID(o.id), effs)
     audit(SystemRepository(session), actor, actor.business_id, "choice_group.created", "choice_group", group_id)
     return {"id": str(group_id), "code": group.code, "name": group.name, "selection_type": group.selection_type.value,
             "required": group.required, "min_select": group.min_select, "max_select": group.max_select,
-            "options": [{"id": o.id, "name": o.name, "price_delta": str(o.price_delta.amount)} for o in options]}
+            "options": [{"id": o.id, "name": o.name, "price_delta": str(o.price_delta.amount),
+                         "effects": [_effect_dto(e) for e in effs or ()]} for o, effs in zip(options, effects_in)]}
 
 
-def list_choice_groups(session: Session, actor: Actor) -> list[dict[str, Any]]:
+def list_choice_groups(session: Session, actor: Actor, detail: bool = True) -> list[dict[str, Any]]:
+    """``detail`` adds per-option ``effect_warnings`` (Admin); the POS menu skips that work."""
     actor.require(PermissionKey.CHOICES_VIEW)
     repo = ProductRepository(session)
     groups = repo.to_domain_groups(repo.groups(actor.business_id), actor.currency)
+    effects = repo.option_effects(o.id for g in groups.values() for o in g.options)
+    warnings = _effect_warnings(repo, actor, groups, effects) if detail else {}
     return [{"id": g.id, "code": g.code, "name": g.name, "display_name": g.display_name, "description": g.description,
              "selection_type": g.selection_type.value, "required": g.required, "min_select": g.min_select,
              "max_select": g.max_select, "active": g.active,
              "options": [{"id": o.id, "name": o.name, "price_delta": str(o.price_delta.amount), "active": o.active,
-                          "is_default": o.is_default} for o in g.options]} for g in groups.values()]
+                          "is_default": o.is_default, "effects": [_effect_dto(e) for e in effects.get(o.id, ())],
+                          "effect_warnings": warnings.get(o.id, [])} for o in g.options]} for g in groups.values()]
 
 
 # --- discounts --------------------------------------------------------------------------------------------------------
@@ -387,6 +480,10 @@ def update_choice_group(session: Session, actor: Actor, group_id: str, data: dic
     row.name, row.display_name, row.description = group.name, group.display_name, group.description
     row.selection_type, row.required = group.selection_type.value, group.required
     row.min_select, row.max_select, row.active = group.min_select, group.max_select, group.active
+    gated: list[bool] = []
+    stored = repo.option_effects(existing)
+    effects_in = [_option_effects_in(session, actor, o, uuid.UUID(opt.id), gated, stored.get(opt.id, ()))
+                  for (_, o), opt in zip(planned, options)]
     for (orow, _), opt in zip(planned, options):
         if orow is None:
             session.add(ChoiceOptionRow(id=uuid.UUID(opt.id), group_id=gid, name=opt.name,
@@ -396,8 +493,12 @@ def update_choice_group(session: Session, actor: Actor, group_id: str, data: dic
             orow.name, orow.price_delta, orow.is_default = opt.name, opt.price_delta.amount, opt.is_default
             orow.active, orow.sort_order = opt.active, opt.sort_order
     session.flush()
+    for opt, effs in zip(options, effects_in):
+        if effs is not None:
+            repo.replace_option_effects(uuid.UUID(opt.id), effs)
     audit(SystemRepository(session), actor, actor.business_id, "choice_group.updated", "choice_group", gid,
-          after={"active": group.active, "options": len(options)})
+          after={"active": group.active, "options": len(options),
+                 "effects_changed": sum(1 for e in effects_in if e is not None)})
     return next(g for g in list_choice_groups(session, actor) if g["id"] == str(gid))
 
 

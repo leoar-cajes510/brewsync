@@ -118,7 +118,7 @@ For each: **Purpose · Key attributes · Relationships · Behaviour · Depended 
 
 **ChoiceGroup** — Reusable customization group (Size, Milk…). · code, name, display_name, description, selection type (single/multi), required, min, max, active. · Has ChoiceOptions; linked to Products. · Validates selections (BUSINESS-RULES §2).
 
-**ChoiceOption** — One option. · name, price_delta (≥ 0), active, is_default, sort_order. · Ingredient effect ⚠ OPEN Q-ING-2. · Snapshotted into OrderItemChoice.
+**ChoiceOption** — One option. · name, price_delta (≥ 0), active, is_default, sort_order. · Ingredient effects SCALE / ADD / REPLACE (`choice_option_effects`, R4a.3a). · Snapshotted into OrderItemChoice.
 
 **Ingredient** — Raw material. · code, name, category, unit (g, kg, ml, L, pcs), unit_cost, notes, active; stock held in StockLevel (no `stock_quantity` column). · Used by RecipeLines. · Costing ⚠ OPEN Q-ING-3; unit conversion ⚠ OPEN Q-ING-4.
 
@@ -198,7 +198,7 @@ backend/app/
 | `order.py` | `Order`, `OrderStatus` (state machine), `OrderLine`, `PaymentStatus`, `RefundStatus` | Allowed transitions; `version` guard; freeze totals; completion requires settlement; cancellation rules. |
 | `payment.py` | `PaymentMethod` (abstract), `CashTender`, `ReferencePayment` (GCash/Card/Bank Transfer), `Settlement`, `CashRoundingPolicy` | `Settlement`: remaining = total − completed − pending; settled when Σ completed (`amount` + `rounding_adjustment`) = total; derives `payment_status`. `CashTender`: tendered ≥ amount, change = tendered − amount. `ReferencePayment`: exact amount, reference when `require_reference` is on. `CashRoundingPolicy`: `payments.cash_rounding {enabled, increment, mode}` applied only to a cash payment settling the full remaining balance (Q-PAY-1, Q-PAY-2, ⚖ VR-5). |
 | `inventory.py` | `StockLevel` (on_hand, reserved, available, status), `Reservation`, `StockLedger`, `StockMovement`, `StockStatus` | Reserve all-or-nothing, release, convert reservation → sale; enforce invariants; reject (never clamp) adjustments below `reserved` / zero (Q-INV-2, Q-INV-3). |
-| `recipe.py` (add) | `Recipe`, `RecipeLine`, `ConsumptionPlan` | Expand order lines into unit and ingredient quantities (option modifiers ⚠ OPEN Q-ING-2); product cost (⚠ OPEN Q-ING-3). |
+| `recipe.py` (add) | `Recipe`, `RecipeLine`, `ConsumptionPlan` | Expand order lines into unit and ingredient quantities (option SCALE/ADD/REPLACE effects via `resolve_unit_consumption`, R4a.3a); product cost (⚠ OPEN Q-ING-3). |
 | `receipt.py` → document module | `SalesDocument`, `DocumentType`, `DocumentNumberAllocator`, `FieldLockSet` | Build the immutable document snapshot from order + `receipts` display settings, with compliance must-print locks overriding display toggles; allocate the next number from a row-locked series using its format template (Q-RCP-1, Q-RCP-2, ⚖ VR-3). |
 | `refund.py` (add) | `Refund`, `RefundLine`, `RefundAllocation`, `RefundCalculator` | Compute refund amount server-side; cap Σ refunds ≤ Σ completed payment `amount`; derive `refund_status` / document status (Q-REF-1; granularity ⚠ OPEN Q-REF-5; allocation ⚠ OPEN Q-REF-2). |
 | `archive.py` (add) | `ArchivePolicy`, `RetentionPolicy` | Auto-archive eligibility (completed, `completed_at + archiving.auto_archive_after` passed, not restored); cancelled = manual only; restore window check; retention ≥ `compliance.retention_minimum`; **no disposal until a verified minimum exists** (Q-ARC-1..4, ⚠ OPEN Q-ARC-5, ⚖ VR-6). |

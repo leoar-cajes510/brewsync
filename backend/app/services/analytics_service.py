@@ -4,7 +4,8 @@ from this feed, so nothing is simulated in the browser.
 
 Sales = completed orders (archived or not) whose ``completed_at`` falls in the range, at their net
 value after refunds; fully refunded orders are left out. Line cost is an estimate from the
-product's current recipe (ingredient unit cost × quantity); products without a recipe cost 0.
+product's current recipe plus the current ingredient effects of the line's selected options (R4a.3a, ingredient
+unit cost × quantity; Q-ING-3: no historical cost snapshot); products without a recipe cost 0.
 """
 
 from __future__ import annotations
@@ -19,7 +20,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError, validation
+from app.domain.errors import ValidationError as DomainValidationError
 from app.domain.identity import PermissionKey
+from app.domain.recipe import resolve_unit_consumption
 from app.models import CategoryRow, ExpenseRow, IngredientRow, OrderRow, ProductRow
 from app.repositories.order_repository import OrderRepository
 from app.repositories.product_repository import ProductRepository
@@ -66,11 +69,19 @@ def sales_feed(session: Session, actor: Actor, start: str | None, end: str | Non
     ing_cost = {str(i.id): Decimal(i.unit_cost) for i in session.scalars(select(IngredientRow).where(
         IngredientRow.business_id == actor.business_id))}
 
-    def unit_cost(product_id: str) -> float:
-        recipe = recipes.get(product_id)
+    option_effects = ProductRepository(session).option_effects(
+        {c.option_id for o in orders for i in o.items for c in i.choices if c.option_id})
+
+    def unit_cost(item) -> float:  # type: ignore[no-untyped-def]
+        recipe = recipes.get(item.product_id)
         if not recipe:
             return 0.0
-        return float(sum((ing_cost.get(l.ingredient_id, Decimal(0)) * l.quantity for l in recipe.lines), Decimal(0)))
+        effects = [e for c in item.choices if c.option_id for e in option_effects.get(c.option_id, ())]
+        try:
+            used = resolve_unit_consumption(recipe, effects)
+        except DomainValidationError:
+            used = resolve_unit_consumption(recipe)  # options changed since the sale: base recipe estimate
+        return float(sum((ing_cost.get(k, Decimal(0)) * q for k, q in used.items()), Decimal(0)))
 
     sales = []
     for row, order in zip(rows, orders):
@@ -88,7 +99,7 @@ def sales_feed(session: Session, actor: Actor, start: str | None, end: str | Non
             "lines": [{
                 "product": i.product_name, "code": i.product_code,
                 "category": categories.get(products[i.product_id].category_id, "Uncategorized") if i.product_id in products else "Uncategorized",
-                "qty": i.quantity, "price": float(i.unit_price.amount), "cost": unit_cost(i.product_id),
+                "qty": i.quantity, "price": float(i.unit_price.amount), "cost": unit_cost(i),
             } for i in order.items],
         })
 

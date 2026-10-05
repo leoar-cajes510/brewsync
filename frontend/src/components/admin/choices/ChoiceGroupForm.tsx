@@ -5,11 +5,11 @@ import Drawer from '../../ui/Drawer';
 import Input from '../../ui/Input';
 import Tabs from '../../ui/Tabs';
 import Toggle from '../../ui/Toggle';
-import ChoiceOptionForm from './ChoiceOptionForm';
-import type { AdminChoiceGroup, ChoiceGroupDraft, ChoiceOptionDraft, SelectionType } from '../../../types/choice';
+import ChoiceOptionForm, { type EffectIngredient } from './ChoiceOptionForm';
+import { effectError, type AdminChoiceGroup, type ChoiceGroupDraft, type ChoiceOptionDraft, type SelectionType } from '../../../types/choice';
 
 let optionSeq = 0;
-export const newOption = (): ChoiceOptionDraft => ({ id: `opt-${++optionSeq}`, name: '', price: 0, active: true, isDefault: false });
+export const newOption = (): ChoiceOptionDraft => ({ id: `opt-${++optionSeq}`, name: '', price: 0, active: true, isDefault: false, effects: [] });
 
 const blankDraft = (): ChoiceGroupDraft => ({
   name: '',
@@ -67,9 +67,11 @@ interface ChoiceGroupFormProps {
   onSave: (draft: ChoiceGroupDraft) => void;
   onDuplicate?: (group: AdminChoiceGroup) => void;
   onToggleActive?: (group: AdminChoiceGroup) => void;
+  /** Ingredients for option effects; omitted when the user cannot edit recipes or the feature is off. */
+  ingredients?: EffectIngredient[];
 }
 
-export default function ChoiceGroupForm({ open, group, onClose, onSave, onDuplicate, onToggleActive }: ChoiceGroupFormProps) {
+export default function ChoiceGroupForm({ open, group, onClose, onSave, onDuplicate, onToggleActive, ingredients }: ChoiceGroupFormProps) {
   const [draft, setDraft] = useState<ChoiceGroupDraft>(blankDraft);
   const [submitted, setSubmitted] = useState(false);
 
@@ -78,7 +80,7 @@ export default function ChoiceGroupForm({ open, group, onClose, onSave, onDuplic
     setSubmitted(false);
     if (group) {
       const { id: _id, code: _code, ...rest } = group;
-      setDraft({ ...rest, options: rest.options.map((o) => ({ ...o })) });
+      setDraft({ ...rest, options: rest.options.map((o) => ({ ...o, effects: o.effects.map((e) => ({ ...e })) })) });
     } else {
       setDraft(blankDraft());
     }
@@ -120,7 +122,7 @@ export default function ChoiceGroupForm({ open, group, onClose, onSave, onDuplic
   const optionErrors = draft.options.map((o, i) => {
     if (!o.name.trim()) return 'Option name is required.';
     if (names.indexOf(names[i]) !== i) return 'Duplicate option name.';
-    return undefined;
+    return ingredients ? effectError(o.effects) : undefined;
   });
   const activeCount = draft.options.filter((o) => o.active).length;
   const optionsError =
@@ -264,6 +266,7 @@ export default function ChoiceGroupForm({ open, group, onClose, onSave, onDuplic
               type={draft.type}
               error={submitted ? optionErrors[i] : undefined}
               canRemove={draft.options.length > 1}
+              ingredients={ingredients}
               onChange={(patch) => updateOption(o.id, patch)}
               onRemove={() => removeOption(o.id)}
             />

@@ -26,7 +26,7 @@ def menu(session: Session, actor: Actor) -> dict[str, Any]:
     return {
         "categories": product_service.list_categories(session, actor),
         "products": product_service.list_products(session, actor),
-        "choice_groups": product_service.list_choice_groups(session, actor),
+        "choice_groups": product_service.list_choice_groups(session, actor, detail=False),
         "discounts": discounts,
         "stock": inventory_service.list_stock(session, actor, SubjectType.PRODUCT),
     }

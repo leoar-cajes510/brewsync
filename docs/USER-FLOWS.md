@@ -487,7 +487,7 @@ BUSINESS-RULES §2. Q-DEL-1 (DECIDED).
 3. **Attach to products** from Products (§11) or from the group.
 4. Edits affect new orders only. Orders keep `order_item_choices` snapshots.
 5. **Delete** is allowed only if the group or option was never referenced. Otherwise **deactivate** it (Q-DEL-1).
-6. Whether options consume ingredients (e.g. extra milk) is ⚠ OPEN (Q-ING-2).
+6. Options may consume ingredients (Q-ING-2): SCALE the whole recipe (Large 1.5×), ADD an ingredient (Extra Espresso +9 g beans) or REPLACE a base-recipe ingredient (Oat Milk replaces Fresh Milk). Set per option under Admin → Choices → Ingredient effects (needs Manage Recipes and Ingredient Tracking).
 
 **UI today:** choices are page-local and not linked to products.
 

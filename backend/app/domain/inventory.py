@@ -21,7 +21,7 @@ from types import MappingProxyType
 from .errors import InsufficientStock, NegativeStockError, StockReserved, ValidationError
 from .money import to_quantity
 from .product import Product
-from .recipe import Recipe
+from .recipe import ChoiceEffect, Recipe
 
 
 class SubjectType(StrEnum):
@@ -263,13 +263,16 @@ class ReservationPlan:
         object.__setattr__(self, "quantities", MappingProxyType(dict(sorted(self.quantities.items()))))
 
     @classmethod
-    def for_lines(cls, lines: Iterable[tuple[Product, int]], recipes: Mapping[str, Recipe]) -> ReservationPlan:
+    def for_lines(cls, lines: Iterable[tuple[Product, int] | tuple[Product, int, Sequence[ChoiceEffect]]],
+                  recipes: Mapping[str, Recipe]) -> ReservationPlan:
         """Aggregate unit and ingredient requirements across all lines (R4.2, R4a.3).
 
-        Choice-option ingredient modifiers are ⚠ OPEN (Q-ING-2): only the base recipe is used.
+        A line may carry the ingredient effects of its selected choice options (R4a.3a); they
+        apply only when the product tracks ingredients.
         """
         totals: dict[StockKey, Decimal] = {}
-        for product, quantity in lines:
+        for product, quantity, *rest in lines:
+            effects = tuple(rest[0]) if rest else ()
             if quantity <= 0:
                 raise ValidationError("line quantity must be > 0")
             if product.track_units:
@@ -279,7 +282,7 @@ class ReservationPlan:
                 recipe = recipes.get(product.id)
                 if recipe is None or not recipe.lines:
                     raise ValidationError(f"product {product.name} tracks ingredients but has no recipe")
-                for ingredient_id, needed in recipe.consumption(quantity).items():
+                for ingredient_id, needed in recipe.consumption(quantity, effects).items():
                     key = StockKey(SubjectType.INGREDIENT, ingredient_id)
                     totals[key] = totals.get(key, Decimal("0")) + needed
         return cls(totals)

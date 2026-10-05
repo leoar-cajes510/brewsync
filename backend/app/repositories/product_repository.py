@@ -12,10 +12,10 @@ from sqlalchemy.orm import Session
 from app.domain.discount import Discount, DiscountType, Eligibility, IdentificationField
 from app.domain.money import Money
 from app.domain.product import ChoiceGroup, ChoiceOption, Product, ProductChoiceGroup, SelectionType
-from app.domain.recipe import Recipe, RecipeLine
+from app.domain.recipe import ChoiceEffect, Recipe, RecipeLine
 from app.domain.tax import TaxClass
 from app.models import (
-    CategoryRow, ChoiceGroupRow, ChoiceOptionRow, DiscountRow, IngredientRow, ProductChoiceGroupRow, ProductRow,
+    CategoryRow, ChoiceGroupRow, ChoiceOptionEffectRow, ChoiceOptionRow, DiscountRow, IngredientRow, ProductChoiceGroupRow, ProductRow,
     RecipeLineRow, RecipeRow,
 )
 
@@ -127,6 +127,31 @@ class ProductRepository:
         for line in recipe.lines:
             self.s.add(RecipeLineRow(recipe_id=row.id, ingredient_id=uuid.UUID(line.ingredient_id),
                                      quantity=line.quantity))
+        self.s.flush()
+
+    # --- choice option ingredient effects (R4a.3a) ----------------------------------------------------------
+    def option_effects(self, option_ids: Iterable[uuid.UUID | str]) -> dict[str, tuple[ChoiceEffect, ...]]:
+        ids = [uuid.UUID(str(o)) for o in option_ids]
+        if not ids:
+            return {}
+        result: dict[str, tuple[ChoiceEffect, ...]] = {}
+        for r in self.s.scalars(select(ChoiceOptionEffectRow).where(ChoiceOptionEffectRow.option_id.in_(ids))
+                                .order_by(ChoiceOptionEffectRow.option_id, ChoiceOptionEffectRow.sort_order)):
+            effect = ChoiceEffect(str(r.option_id), r.mode, str(r.ingredient_id) if r.ingredient_id else None,
+                                  Decimal(r.quantity),
+                                  str(r.replaces_ingredient_id) if r.replaces_ingredient_id else None)
+            result[str(r.option_id)] = result.get(str(r.option_id), ()) + (effect,)
+        return result
+
+    def replace_option_effects(self, option_id: uuid.UUID, effects: Iterable[ChoiceEffect]) -> None:
+        self.s.execute(delete(ChoiceOptionEffectRow).where(ChoiceOptionEffectRow.option_id == option_id))
+        self.s.flush()
+        for i, e in enumerate(effects):
+            self.s.add(ChoiceOptionEffectRow(
+                option_id=option_id, mode=e.mode.value,
+                ingredient_id=uuid.UUID(e.ingredient_id) if e.ingredient_id else None,
+                replaces_ingredient_id=uuid.UUID(e.replaces_ingredient_id) if e.replaces_ingredient_id else None,
+                quantity=e.quantity, sort_order=i))
         self.s.flush()
 
     # --- discounts ---------------------------------------------------------------------------------------------

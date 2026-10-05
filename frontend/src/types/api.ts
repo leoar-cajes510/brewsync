@@ -88,12 +88,25 @@ export interface ProductDto {
   updated_at?: string;
 }
 
+/** Ingredient effect of a choice option (R4a.3a), in the ingredient's own unit.
+ * 'scale' multiplies the whole base recipe: no ingredient, `quantity` is the factor (e.g. "1.500"). */
+export interface ChoiceEffectDto {
+  mode: 'scale' | 'add' | 'replace';
+  ingredient_id: string | null;
+  /** Base-recipe ingredient a REPLACE swaps out; null for ADD. */
+  replaces_ingredient_id: string | null;
+  quantity: string;
+}
+
 export interface ChoiceOptionDto {
   id: string;
   name: string;
   price_delta: Money;
   active?: boolean;
   is_default?: boolean;
+  effects?: ChoiceEffectDto[];
+  /** Products whose recipe lacks an ingredient this option's REPLACE would swap (it is ignored there). */
+  effect_warnings?: string[];
 }
 
 export interface ChoiceGroupDto {

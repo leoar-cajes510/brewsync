@@ -9,6 +9,7 @@ from decimal import Decimal
 from sqlalchemy import (
     Boolean, CheckConstraint, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, Uuid,
 )
+from sqlalchemy import text as text_
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base, JSONType, money, quantity, text, ts, uuid_pk
@@ -125,6 +126,36 @@ class RecipeLineRow(Base):
     recipe_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("recipes.id", ondelete="CASCADE"))
     ingredient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ingredients.id", ondelete="RESTRICT"))
     quantity: Mapped[Decimal] = quantity()
+
+
+class ChoiceOptionEffectRow(Base):
+    """Ingredient effect of a choice option (R4a.3a). Options are never deleted (only deactivated),
+    so the cascade only matters for a hard delete; orders keep their own snapshots and reservation."""
+
+    __tablename__ = "choice_option_effects"
+    __table_args__ = (
+        UniqueConstraint("option_id", "ingredient_id"),
+        Index("uq_choice_option_effects_option_id_replaces_ingredient_id", "option_id", "replaces_ingredient_id",
+              unique=True, postgresql_where=text_("replaces_ingredient_id is not null")),
+        Index("uq_choice_option_effects_option_id_scale", "option_id", unique=True,
+              postgresql_where=text_("mode = 'scale'")),
+        Index("ix_choice_option_effects_ingredient_id", "ingredient_id"),
+        CheckConstraint("quantity > 0", name="quantity"),
+        CheckConstraint("(mode = 'scale' and ingredient_id is null and replaces_ingredient_id is null) or "
+                        "(mode = 'add' and ingredient_id is not null and replaces_ingredient_id is null) or "
+                        "(mode = 'replace' and ingredient_id is not null and replaces_ingredient_id is not null "
+                        "and replaces_ingredient_id <> ingredient_id)", name="mode"),
+    )
+    id: Mapped[uuid.UUID] = uuid_pk()
+    option_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("choice_options.id", ondelete="CASCADE"))
+    mode: Mapped[str] = text(10)
+    # NULL only for 'scale' (a factor for the whole base recipe; ``quantity`` holds the factor).
+    ingredient_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ingredients.id", ondelete="RESTRICT"),
+                                                            nullable=True)
+    replaces_ingredient_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("ingredients.id", ondelete="RESTRICT"), nullable=True)
+    quantity: Mapped[Decimal] = quantity()
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class StockLevelRow(Base):

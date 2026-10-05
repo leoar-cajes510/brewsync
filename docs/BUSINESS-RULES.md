@@ -150,7 +150,7 @@ Archive is a flag (`archived_at`), **not** a status (§12).
 - **R4.1 Stock flags (Q-INV-1, DECIDED).** A product has two independent flags: `track_units` (sellable unit stock) and `track_ingredients` (recipe consumption, §4a) — either, both, or neither. When both are on, **both** must be sufficient. A product with neither has no stock effect. (Replaces the old `stock_mode` enum.)
 - **R4.2 Reservation at creation (Q-INV-2, DECIDED).** Creating an order computes the required quantity per stock subject, aggregated across all lines:
   - units: line quantity (if `track_units`);
-  - ingredients: Σ recipe line quantity × line quantity (if `track_ingredients`, R4a.3).
+  - ingredients: Σ resolved recipe quantity (base recipe + selected options' effects, R4a.3a) × line quantity (if `track_ingredients`, R4a.3).
 
   All required quantities are reserved **atomically, all-or-nothing** (`reservation` movements, `reference_type = order`). Any shortfall → 409 INSUFFICIENT_STOCK; nothing is reserved or created.
 - **R4.3 Release on cancel.** Cancelling before completion writes `reservation_release` movements for exactly the quantities reserved by that order.
@@ -167,8 +167,18 @@ Archive is a flag (`archived_at`), **not** a status (§12).
 ### 4a. Ingredients & recipes
 - **R4a.1** Ingredient: name unique (case-insensitive), unit from {g, kg, ml, L, pcs}, stock via `stock_levels` (on_hand ≥ 0), unit cost ≥ 0 (up to 4 dp), threshold ≥ 0.
 - **R4a.2** Recipe line quantity > 0 in the ingredient's unit (unit conversion **⚠ OPEN Q-ING-4**). An ingredient appears once per recipe.
-- **R4a.3** Consumption per order line = Σ recipe line quantity × order line quantity (+ choice-option ingredient modifiers **⚠ OPEN Q-ING-2**). It is **reserved** at creation (`reservation` per ingredient, `reference = order`) and becomes `sale` movements at completion (R4.2–R4.4).
-- **R4a.4** Product cost (for margins) = Σ recipe line quantity × ingredient unit cost (costing method **⚠ OPEN Q-ING-3**).
+- **R4a.3** Consumption per order line = the line's resolved recipe for one unit (R4a.3a) × order line quantity. It is **reserved** at creation (`reservation` per ingredient, `reference = order`) and becomes `sale` movements at completion (R4.2–R4.4).
+- **R4a.3a Choice-option ingredient effects (Q-ING-2, DECIDED).** A choice option may carry ingredient effects in addition to its `price_delta`; they belong to the option (`choice_option_effects`), so the order total and the reservation use the same stored data and one server calculation. Three modes, per ONE unit of the product (quantities in the ingredient's own unit):
+  - **SCALE** — multiply every **base recipe** line by a configurable factor (e.g. Small 1.0×, Medium 1.25×, Large 1.5×; 0 < factor ≤ 10). It names no ingredient and can never add one; at most one per option.
+  - **ADD** — consume `quantity` more of an ingredient (e.g. Extra Espresso: +9 g Espresso Beans).
+  - **REPLACE** — if the replaced ingredient is a line of the product's **base recipe**, that line is removed and `quantity` × the scale factor of the replacement is consumed instead (e.g. Oat Milk: Fresh Milk 180 ml → Oat Milk 180 ml). If the replaced ingredient is **not** in the base recipe the effect is ignored entirely — nothing is removed and the replacement is **not** added. Admin shows which linked products ignore it (advisory only: a choice group is shared by many products).
+  - **Resolution:** base recipe → **SCALE** (× factor) → **REPLACE** (checked against the base recipe; replacement quantity × factor) → **ADD** (fixed, not scaled) → sum per ingredient (scaled values rounded half-up to 3 dp) → × line quantity → aggregated into the order's `reservation`. Examples: Café Latte (18 g beans, 180 ml milk) + Oat Milk + Extra Espresso + Caramel = 27 g beans, 180 ml oat milk, 15 ml caramel, 0 ml fresh milk; **Large (1.5×)** + Oat Milk + Extra Espresso = 27 + 9 = 36 g beans, 270 ml oat milk.
+  - Two selected options that both SCALE (e.g. Size and a separate "Jumbo Cup" group) are refused at quote and creation — the factors are never multiplied or combined. Price is independent: each option keeps its own `price_delta`.
+  - Effects apply only when the product has `track_ingredients` on (so a product without a recipe has no ingredient effect). Product unit stock (`track_units`) is unchanged.
+  - Two selected options that REPLACE the same base ingredient are refused (quote and creation) — neither can be preferred. Within one option, an ingredient appears once and a base ingredient is replaced at most once.
+  - The resolved quantities are frozen in the order's `reservation` at creation (R4.5): later recipe or effect edits never change an order's reservation, release or sale. Selected option names and prices stay in `order_item_choices`.
+  - Editing effects needs ✱choices.manage **and** ✱ingredients.recipes with ⚑Ingredient Tracking on; every ingredient must belong to the business. Omitting `effects` on an option leaves its effects unchanged; `[]` clears them.
+- **R4a.4** Product cost (for margins) = Σ resolved quantity (base recipe + the line's option effects, R4a.3a) × ingredient unit cost (costing method **⚠ OPEN Q-ING-3**). Analytics estimates it from the *current* recipe, effects and unit costs; no per-order cost snapshot is stored.
 - **R4a.5** An ingredient used in any recipe or with any movement cannot be deleted — only deactivated (Q-DEL-1); a deactivated ingredient cannot be added to new recipe lines.
 - **R4a.6** If ⚑Ingredient Tracking is off, recipes are editable only when re-enabled; consumption behaviour **⚠ OPEN (Q-FEAT-1)**.
 - **R4a.7** Permissions: recipes and ingredient definitions ✱ingredients.recipes; ingredient stock ✱ingredients.adjust (both protected).

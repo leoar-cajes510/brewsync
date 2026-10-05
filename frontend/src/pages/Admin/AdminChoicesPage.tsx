@@ -13,6 +13,10 @@ import type { AdminChoiceGroup, ChoiceGroupDraft } from '../../types/choice';
 import type { ChoiceGroupDto, ProductDto } from '../../types/api';
 import { errorMessage } from '../../services/api';
 import { createChoiceGroup, listChoiceGroups, listProducts, updateChoiceGroup, type ChoiceGroupInput } from '../../services/productService';
+import { listIngredients } from '../../services/inventoryService';
+import { can, useAuth } from '../../stores/authStore';
+import { useFeatureSettings } from '../../stores/featureSettingsStore';
+import type { EffectIngredient } from '../../components/admin/choices/ChoiceOptionForm';
 import '../../components/admin/products/products.css';
 import '../../components/admin/choices/choices.css';
 
@@ -36,12 +40,21 @@ function fromDto(g: ChoiceGroupDto): AdminChoiceGroup {
     min: g.min_select,
     max: g.max_select,
     active: g.active ?? true,
-    options: g.options.map((o) => ({ id: o.id, name: o.name, price: Number(o.price_delta), active: o.active ?? true, isDefault: o.is_default ?? false })),
+    options: g.options.map((o) => ({
+      id: o.id,
+      name: o.name,
+      price: Number(o.price_delta),
+      active: o.active ?? true,
+      isDefault: o.is_default ?? false,
+      effects: (o.effects ?? []).map((e) => ({ mode: e.mode, ingredientId: e.ingredient_id ?? '', replacesId: e.replaces_ingredient_id ?? '', quantity: String(Number(e.quantity)) })),
+      effectWarnings: o.effect_warnings ?? [],
+    })),
   };
 }
 
-/** Existing options keep their server id; options created in the form (client ids) are sent without one. */
-function toInput(draft: ChoiceGroupDraft, existing: AdminChoiceGroup | null): ChoiceGroupInput {
+/** Existing options keep their server id; options created in the form (client ids) are sent without one.
+ * Effects are sent only when the user may edit them — otherwise the key is omitted so stored effects stay. */
+function toInput(draft: ChoiceGroupDraft, existing: AdminChoiceGroup | null, withEffects: boolean): ChoiceGroupInput {
   const known = new Set(existing?.options.map((o) => o.id) ?? []);
   return {
     name: draft.name,
@@ -57,6 +70,16 @@ function toInput(draft: ChoiceGroupDraft, existing: AdminChoiceGroup | null): Ch
       price_delta: o.price.toFixed(2),
       is_default: o.isDefault,
       active: o.active,
+      ...(withEffects
+        ? {
+            effects: o.effects.map((e) => ({
+              mode: e.mode,
+              ingredient_id: e.mode === 'scale' ? null : e.ingredientId,
+              replaces_ingredient_id: e.mode === 'replace' ? e.replacesId : null,
+              quantity: e.quantity,
+            })),
+          }
+        : {}),
     })),
   };
 }
@@ -80,6 +103,25 @@ export default function AdminChoicesPage() {
   const clearFeedback = useCallback(() => setFeedback(null), []);
 
   const editing = groups.find((g) => g.id === editingId) ?? null;
+  const { user } = useAuth();
+  const { flags } = useFeatureSettings();
+  const canEditEffects = can(user, 'ingredients.recipes') && flags.ingredients;
+  const [ingredients, setIngredients] = useState<EffectIngredient[] | undefined>(undefined);
+
+  useEffect(() => {
+    if (!canEditEffects) {
+      setIngredients(undefined);
+      return;
+    }
+    let live = true;
+    listIngredients()
+      .then((list) => live && setIngredients(list.map((i) => ({ id: i.id, name: i.name, unit: i.unit, active: i.active }))))
+      .catch(() => live && setIngredients(undefined)); // without the list, effects stay read-only (key omitted)
+    return () => {
+      live = false;
+    };
+  }, [canEditEffects]);
+  const withEffects = canEditEffects && ingredients !== undefined;
 
   const refresh = useCallback(async () => {
     try {
@@ -156,10 +198,10 @@ export default function AdminChoicesPage() {
   const save = (draft: ChoiceGroupDraft) => {
     if (saving) return;
     if (editing) {
-      void run(() => updateChoiceGroup(editing.id, { ...toInput(draft, editing), active: draft.active }), `${draft.name} updated`);
+      void run(() => updateChoiceGroup(editing.id, { ...toInput(draft, editing, withEffects), active: draft.active }), `${draft.name} updated`);
     } else {
       void run(async () => {
-        const created = await createChoiceGroup({ ...toInput(draft, null), code: nextCode(groups) });
+        const created = await createChoiceGroup({ ...toInput(draft, null, withEffects), code: nextCode(groups) });
         if (!draft.active) await updateChoiceGroup(created.id, { active: false });
       }, `${draft.name} created`);
     }
@@ -168,7 +210,7 @@ export default function AdminChoicesPage() {
   const duplicate = (source: AdminChoiceGroup) => {
     if (saving) return;
     const copy = { ...source, name: `${source.name} (Copy)`, options: source.options.map((o) => ({ ...o, id: newOption().id })) };
-    void run(() => createChoiceGroup({ ...toInput(copy, null), code: nextCode(groups) }), `Duplicated as ${copy.name}`);
+    void run(() => createChoiceGroup({ ...toInput(copy, null, withEffects), code: nextCode(groups) }), `Duplicated as ${copy.name}`);
   };
 
   const toggleActive = (g: AdminChoiceGroup) => {
@@ -320,6 +362,7 @@ export default function AdminChoicesPage() {
         onSave={save}
         onDuplicate={duplicate}
         onToggleActive={toggleActive}
+        ingredients={withEffects ? ingredients : undefined}
       />
 
       <ConfirmDialog

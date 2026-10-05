@@ -95,7 +95,7 @@ The **business row and the first Admin are not seeded** — the owner creates th
 ### Q-INV-1 ★ Product stock and ingredient stock — ✅ DECIDED
 - **Approved rule:** Support BOTH product stock and ingredient stock. A product may have sellable product stock, ingredient recipe consumption, or both.
 - **Implementation consequences:** two independent product flags `track_units` (sellable unit stock) and `track_ingredients` (recipe consumption) — either, both or neither; they replace the old `stock_mode` enum (C-16). When both are set, **both** must be sufficient. POS availability = min(unit availability, ingredient-limited availability). Stock lives in `stock_levels` (subject_type, subject_id, on_hand, reserved, low_stock_threshold). Feature gates: ⚑Inventory (units) and ⚑Ingredient Tracking (ingredients).
-- **Remaining open detail:** behaviour while a tracking feature is disabled → **Q-FEAT-1**; choice-option ingredient modifiers → **Q-ING-2**.
+- **Remaining open detail:** behaviour while a tracking feature is disabled → **Q-FEAT-1**. (Choice-option ingredient effects → **Q-ING-2**, decided.)
 - **Decision:** DECIDED — 2026-09-27 (Phase 3B owner approval).
 
 ### Q-INV-2 ★ Reserve inventory at order creation — ✅ DECIDED
@@ -115,11 +115,12 @@ The **business row and the first Admin are not seeded** — the owner creates th
 - **Approved rule:** (a) — Settings → Staffing → Low Stock Threshold is the **default** threshold pre-filled for newly created products and ingredients. Existing per-item thresholds remain authoritative; the Staffing value is never a global override and changing it does not alter existing items.
 - **Decision:** DECIDED — 2026-10-04 (owner approval).
 
-### Q-ING-2 Do choice options consume ingredients?
+### Q-ING-2 Do choice options consume ingredients? — ✅ DECIDED
 - **Why it matters:** "Oat Milk", "Extra Shot", or larger sizes change ingredient usage and cost — and now also the ingredient **reservation** made at order creation (Q-INV-2).
 - **Options:** (a) No — recipes are per product only. (b) Options add fixed ingredient quantities. (c) Options multiply the base recipe (e.g. size factor). (d) Both (b) and (c).
 - **Implementation needs:** option→ingredient modifier model; consumption/reservation formula; POS availability computation.
-- **Decision:** ⚠ OPEN
+- **Approved rule:** (d), as three modes on the option: **SCALE** the base recipe by a configurable factor (sizes, e.g. Large 1.5×; applied first, also to replacements; never adds an ingredient; two selected scaling options are refused), **ADD** a fixed ingredient quantity, or **REPLACE** a base-recipe ingredient with another at a declared quantity. REPLACE applies only when the replaced ingredient exists in the product's base recipe; otherwise it is ignored. Table `choice_option_effects`; rules BUSINESS-RULES R4a.3a.
+- **Decision:** DECIDED — 2026-10-05 (owner approval; SCALE added 2026-10-06).
 
 ### Q-ING-3 Ingredient costing method
 - **Why it matters:** Drives cost of goods and estimated profit in Analytics.
@@ -554,8 +555,8 @@ Where the approved wording needed interpretation to be implementable, the interp
 
 ## Summary
 
-- **Decided: 31** — Q-ARCH-2, Q-ORD-1, Q-INV-1, Q-INV-2, Q-INV-3, Q-PAY-1, Q-PAY-2, Q-REF-4, Q-REF-1, Q-DSC-1, Q-DSC-2, Q-DSC-3, Q-TAX-1, Q-TAX-2, Q-TAX-3, Q-RCP-1, Q-RCP-2, Q-ARC-1, Q-ARC-4, Q-ARC-2, Q-ARC-3, Q-DEL-1, Q-AUTH-1, Q-AUTH-2, Q-AUTH-4, Q-TRM-1, Q-TRM-2, Q-TRM-3, Q-TRM-4, Q-TRM-5, Q-SET-1.
-- **Open: 38** — Q-ORD-2, Q-ORD-3, Q-ORD-4, Q-ORD-5, Q-ORD-6, Q-ING-2, Q-ING-3, Q-ING-4, Q-PAY-3, Q-PAY-4, Q-REF-2, Q-REF-3, Q-REF-5, Q-CAN-1, Q-DSC-4, Q-RCP-3, Q-RCP-4, Q-RCP-5, Q-ARC-5, Q-EXP-1, Q-EXP-2, Q-AUTH-3, Q-AUTH-5, Q-AUTH-6, Q-AUTH-7, Q-AUTH-8, Q-TRM-6, Q-TRM-7, Q-TRM-8, Q-SET-2, Q-SET-3, Q-SET-4, Q-FEAT-1, Q-FEAT-2, Q-BUS-1, Q-ARCH-1, Q-ARCH-3, Q-ARCH-4.
+- **Decided: 32** — Q-ARCH-2, Q-ORD-1, Q-INV-1, Q-INV-2, Q-INV-3, Q-ING-2, Q-PAY-1, Q-PAY-2, Q-REF-4, Q-REF-1, Q-DSC-1, Q-DSC-2, Q-DSC-3, Q-TAX-1, Q-TAX-2, Q-TAX-3, Q-RCP-1, Q-RCP-2, Q-ARC-1, Q-ARC-4, Q-ARC-2, Q-ARC-3, Q-DEL-1, Q-AUTH-1, Q-AUTH-2, Q-AUTH-4, Q-TRM-1, Q-TRM-2, Q-TRM-3, Q-TRM-4, Q-TRM-5, Q-SET-1.
+- **Open: 37** — Q-ORD-2, Q-ORD-3, Q-ORD-4, Q-ORD-5, Q-ORD-6, Q-ING-3, Q-ING-4, Q-PAY-3, Q-PAY-4, Q-REF-2, Q-REF-3, Q-REF-5, Q-CAN-1, Q-DSC-4, Q-RCP-3, Q-RCP-4, Q-RCP-5, Q-ARC-5, Q-EXP-1, Q-EXP-2, Q-AUTH-3, Q-AUTH-5, Q-AUTH-6, Q-AUTH-7, Q-AUTH-8, Q-TRM-6, Q-TRM-7, Q-TRM-8, Q-SET-2, Q-SET-3, Q-SET-4, Q-FEAT-1, Q-FEAT-2, Q-BUS-1, Q-ARCH-1, Q-ARCH-3, Q-ARCH-4.
   - **★ Blocking open: 12** — Q-PAY-3, Q-REF-2, Q-REF-5, Q-CAN-1, Q-RCP-5, Q-AUTH-7, Q-AUTH-8, Q-TRM-7, Q-TRM-8, Q-SET-4, Q-ARCH-1, Q-ARCH-3.
   - **⚖ Open: 5** — Q-ORD-5 (VR-7), Q-REF-2 (VR-8), Q-RCP-3 (VR-3), Q-RCP-5 (VR-3), Q-ARC-5 (VR-6, VR-7).
 - **Approved system rules: 11** (SR-1 … SR-11). **Verification items: 8** (VR-1 … VR-8). **Recorded interpretations: 14** (I-1 … I-14).

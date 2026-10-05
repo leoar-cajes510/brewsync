@@ -92,6 +92,7 @@ def _price_order(session: Session, actor: Actor, data: dict[str, Any]):  # type:
     product_rows = {r.id: r for r in catalog.products(actor.business_id, [pid for pid, _, _ in merged])}
     links = catalog.group_links(product_rows)
     groups = catalog.to_domain_groups(catalog.groups(actor.business_id, {l.group_id for l in links}), actor.currency)
+    effects = catalog.option_effects(o.id for g in groups.values() for o in g.options)
     items, lines_for_plan = [], []
     with domain_errors():
         for pid, selections, qty in merged:
@@ -105,7 +106,8 @@ def _price_order(session: Session, actor: Actor, data: dict[str, Any]):  # type:
             product = catalog.to_domain_product(prow, actor.currency, links)
             resolved = product.resolve_selections(groups, selections)
             items.append(OrderItem.from_product(str(uuid.uuid4()), product, resolved, qty))
-            lines_for_plan.append((product, qty))
+            # Same option effects for reservation and costing (R4a.3a); applied only when tracked.
+            lines_for_plan.append((product, qty, tuple(e for _, o in resolved for e in effects.get(o.id, ()))))
     discount = snapshot = None
     discount_in = data.get("discount")
     if discount_in:
@@ -131,7 +133,10 @@ def _price_order(session: Session, actor: Actor, data: dict[str, Any]):  # type:
 def quote(session: Session, actor: Actor, data: dict[str, Any]) -> dict[str, Any]:
     """Server-side totals preview; nothing is created or reserved."""
     actor.require(PermissionKey.POS_VIEW)
-    _, _, pricing, _ = _price_order(session, actor, data)
+    _, lines_for_plan, pricing, _ = _price_order(session, actor, data)
+    with domain_errors():  # same consumption rules as creation, so a conflicting cart fails here first
+        ReservationPlan.for_lines(lines_for_plan, ProductRepository(session).recipes(
+            [uuid.UUID(line[0].id) for line in lines_for_plan]))
     return {"subtotal": str(pricing.subtotal.amount), "discount_total": str(pricing.discount_total.amount),
             "tax_amount": str(pricing.tax_amount.amount), "net_amount": str(pricing.net_amount.amount),
             "total": str(pricing.total.amount)}
@@ -151,7 +156,7 @@ def create_order(session: Session, actor: Actor, data: dict[str, Any], idempoten
             raise validation("order_type must be dine_in, takeout or delivery") from exc
         order_id = str(uuid.uuid4())
         with domain_errors():
-            plan = ReservationPlan.for_lines(lines_for_plan, catalog.recipes([uuid.UUID(p.id) for p, _ in lines_for_plan]))
+            plan = ReservationPlan.for_lines(lines_for_plan, catalog.recipes([uuid.UUID(line[0].id) for line in lines_for_plan]))
         locked = inv.lock_levels(actor.business_id, plan.keys)
         at = now()
         with domain_errors():
