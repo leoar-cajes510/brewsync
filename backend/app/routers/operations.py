@@ -37,6 +37,11 @@ def update_category(category_id: str, request: Request, body: dict[str, Any] = B
     return respond(authed(request, lambda s, a: product_service.update_category(s, a, category_id, body)))
 
 
+@router.delete("/categories/{category_id}", tags=["catalog"])
+def delete_category(category_id: str, request: Request):  # type: ignore[no-untyped-def]
+    return respond(authed(request, lambda s, a: product_service.delete_category(s, a, category_id)))
+
+
 @router.get("/products", tags=["catalog"])
 def list_products(request: Request):  # type: ignore[no-untyped-def]
     return respond(authed(request, product_service.list_products))

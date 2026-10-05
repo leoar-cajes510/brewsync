@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import Button from '../../ui/Button';
+import ConfirmDialog from '../../ui/ConfirmDialog';
 import Input from '../../ui/Input';
 import Modal from '../../ui/Modal';
 import Toggle from '../../ui/Toggle';
@@ -14,16 +15,20 @@ interface CategoryManagerProps {
   onClose: () => void;
   onCreate: (name: string, codePrefix: string) => Promise<void>;
   onUpdate: (id: string, patch: { name?: string; active?: boolean }) => Promise<void>;
+  /** Present only for Admins; the server enforces the Admin role regardless. */
+  onDelete?: (id: string) => Promise<void>;
 }
 
-// Categories (GET/POST/PATCH /categories). Categories are never deleted — products and past
-// orders reference them — so an unused one is deactivated (hidden from the POS) instead.
-export default function CategoryManager({ open, categories, onClose, onCreate, onUpdate }: CategoryManagerProps) {
+// Categories (GET/POST/PATCH/DELETE /categories). Deactivating hides a category from the POS. Admins may
+// permanently delete one that never held a product or issued a product code; otherwise the server
+// refuses (409) and the reason is shown here.
+export default function CategoryManager({ open, categories, onClose, onCreate, onUpdate, onDelete }: CategoryManagerProps) {
   const [names, setNames] = useState<Record<string, string>>({});
   const [newName, setNewName] = useState('');
   const [newPrefix, setNewPrefix] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<CategoryDto | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -61,13 +66,16 @@ export default function CategoryManager({ open, categories, onClose, onCreate, o
           const name = names[c.id] ?? c.name;
           const renamed = name.trim() !== c.name;
           return (
-            <div key={c.id} className="category-manager__row">
+            <div key={c.id} className={`category-manager__row ${onDelete ? 'category-manager__row--deletable' : ''}`}>
               <span className="category-manager__prefix" title="Code prefix (fixed)">{c.code_prefix}</span>
               <Input aria-label={`Category name ${c.name}`} value={name} maxLength={80} onChange={(e) => setNames((n) => ({ ...n, [c.id]: e.target.value }))} />
               <Button size="sm" disabled={!renamed || busy || !name.trim()} onClick={() => void run(() => onUpdate(c.id, { name: name.trim() }))}>
                 Rename
               </Button>
               <Toggle checked={c.active} onChange={(v) => void run(() => onUpdate(c.id, { active: v }))} label={c.active ? 'Active' : 'Inactive'} />
+              {onDelete && (
+                <Button size="sm" variant="ghost" icon={<Trash2 size={14} />} aria-label={`Delete category ${c.name}`} title="Delete category" disabled={busy} onClick={() => setDeleting(c)} />
+              )}
             </div>
           );
         })}
@@ -105,6 +113,19 @@ export default function CategoryManager({ open, categories, onClose, onCreate, o
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={deleting !== null}
+        danger
+        title={`Delete category ${deleting?.name ?? ''}?`}
+        message="This permanently deletes the category and cannot be undone. Only a category that never had products or issued product codes can be deleted; otherwise deactivate it instead."
+        confirmLabel="Delete Category"
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => {
+          const target = deleting;
+          setDeleting(null);
+          if (target && onDelete) void run(() => onDelete(target.id));
+        }}
+      />
     </Modal>
   );
 }

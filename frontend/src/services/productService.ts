@@ -38,6 +38,8 @@ export const uploadProductImage = (id: string, image: Blob) =>
 export const deleteProductImage = (id: string) => api.delete<ProductDto>(`/products/${id}/image`);
 
 export const deleteProduct = (id: string) => api.delete<{ id: string; deleted: boolean }>(`/products/${id}`);
+/** Admin only; refused (409) once the category has products or issued product codes. */
+export const deleteCategory = (id: string) => api.delete<{ id: string; deleted: boolean }>(`/categories/${id}`);
 
 export const listChoiceGroups = () => api.get<ChoiceGroupDto[]>('/choice-groups');
 export const listDiscounts = () => api.get<DiscountDto[]>('/discounts');

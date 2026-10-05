@@ -726,6 +726,10 @@
   gap: var(--space-2);
 }
 
+.category-manager__row--deletable {
+  grid-template-columns: 3.5rem minmax(0, 1fr) auto auto auto;
+}
+
 .category-manager__prefix {
   font-family: var(--font-mono, monospace);
   font-size: 0.8125rem;

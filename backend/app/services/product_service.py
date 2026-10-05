@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError, not_found, validation
 from app.domain.discount import Discount, DiscountType, Eligibility, IdentificationField
-from app.domain.identity import PermissionKey
+from app.domain.identity import PermissionKey, RoleKey
 from app.domain.inventory import StockKey, SubjectType
 from app.domain.money import Money
 from app.domain.product import (
@@ -299,6 +299,39 @@ def update_category(session: Session, actor: Actor, category_id: str, data: dict
     audit(SystemRepository(session), actor, actor.business_id, "category.updated", "category", row.id,
           before=before, after=category_dto(row))
     return category_dto(row)
+
+
+def delete_category(session: Session, actor: Actor, category_id: str) -> dict[str, Any]:
+    """DELETE /categories/{id} (Q-DEL-1), Admin only: permanent, and only for a category that never held a
+    product (soft-deleted ones included) and never issued a product code, so codes are never reused. Nothing
+    else is touched: products are never reassigned and the FK (ON DELETE RESTRICT) backs this check up."""
+    from sqlalchemy import func, select
+
+    from app.models import SequenceRow
+
+    actor.require(PermissionKey.PRODUCTS_DELETE)
+    if actor.role is not RoleKey.ADMIN:
+        raise AppError("PERMISSION_DENIED", 403, "Only an Admin can delete categories")
+    cid = parse_uuid(category_id, "category")
+    row = session.get(CategoryRow, cid, with_for_update=True)
+    if row is None or row.business_id != actor.business_id:
+        raise not_found("category")
+    products = session.scalar(select(func.count()).select_from(ProductRow).where(ProductRow.category_id == cid)) or 0
+    if products:
+        noun = "product" if products == 1 else "products"
+        raise AppError("CONFLICT", 409,
+                       f"This category has {products} {noun} and cannot be deleted. Move or delete them first.")
+    counter = session.get(SequenceRow, (actor.business_id, f"product:{cid}"), with_for_update=True)
+    if counter is not None and counter.next_value > 1:
+        raise AppError("CONFLICT", 409, "Product codes were already issued from this category.")
+    if counter is not None:
+        session.delete(counter)
+    name, prefix = row.name, row.code_prefix
+    session.delete(row)
+    session.flush()
+    audit(SystemRepository(session), actor, actor.business_id, "category.deleted", "category", cid,
+          before={"name": name, "code_prefix": prefix})
+    return {"id": str(cid), "deleted": True}
 
 
 def update_choice_group(session: Session, actor: Actor, group_id: str, data: dict[str, Any]) -> dict[str, Any]:

@@ -16,7 +16,8 @@ import type { CatalogProduct, CatalogProductDraft } from '../../types/product';
 import LoadingState from '../../components/ui/LoadingState';
 import { errorMessage } from '../../services/api';
 import { addProduct, duplicateProduct, loadCatalog, removeProduct, saveProductImage, toggleProductActive, updateProduct, useCatalog } from '../../stores/catalogStore';
-import { createCategory, listChoiceGroups, updateCategory } from '../../services/productService';
+import { createCategory, deleteCategory, listChoiceGroups, updateCategory } from '../../services/productService';
+import { useAuth } from '../../stores/authStore';
 import '../../components/admin/products/products.css';
 
 type StatusFilter = 'all' | ProductStatus;
@@ -32,6 +33,7 @@ export default function AdminProductsPage() {
   const { products, categories: categoryList, status: loadStatus, error: loadError } = useCatalog();
   const [choiceGroups, setChoiceGroups] = useState<{ id: string; name: string; active: boolean }[]>([]);
   const [managingCategories, setManagingCategories] = useState(false);
+  const isAdmin = useAuth().user?.role === 'admin';
 
   useEffect(() => {
     listChoiceGroups()
@@ -312,6 +314,16 @@ export default function AdminProductsPage() {
           await loadCatalog();
           setFeedback(patch.active === undefined ? 'Category renamed' : `Category ${patch.active ? 'activated' : 'deactivated'}`);
         }}
+        onDelete={
+          isAdmin
+            ? async (id) => {
+                const name = categoryList.find((c) => c.id === id)?.name ?? 'Category';
+                await deleteCategory(id);
+                await loadCatalog();
+                setFeedback(`Category ${name} deleted`);
+              }
+            : undefined
+        }
       />
 
       <ProductDetailsDrawer product={viewing} onClose={() => setViewing(null)} onEdit={actions.onEdit} />
