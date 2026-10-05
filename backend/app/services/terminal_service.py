@@ -85,9 +85,7 @@ def activate(session: Session, terminal_code: str, activation_code: str) -> dict
 def reset_activation(session: Session, actor: Actor, terminal_id: Any, minutes: int) -> dict[str, Any]:
     actor.require(PermissionKey.TERMINALS_MANAGE)
     staff, system = StaffRepository(session), SystemRepository(session)
-    row = staff.terminal(terminal_id, lock=True)
-    if row is None or row.business_id != actor.business_id:
-        raise AppError("NOT_FOUND", 404, "terminal not found")
+    row = _owned(staff, actor, terminal_id)
     terminal = staff.to_domain_terminal(row)
     with domain_errors():
         terminal.reset_activation()
@@ -102,10 +100,15 @@ def reset_activation(session: Session, actor: Actor, terminal_id: Any, minutes: 
 
 
 def _owned(staff: StaffRepository, actor: Actor, terminal_id: Any) -> TerminalRow:
-    row = staff.terminal(terminal_id, lock=True)
+    """Lock order (deadlock-free with in-flight requests): the terminal's active SESSION rows first —
+    every request locks its own session before it touches the terminal (FK) — then the terminal."""
+    row = staff.terminal(terminal_id)
     if row is None or row.business_id != actor.business_id:
         raise AppError("NOT_FOUND", 404, "terminal not found")
-    return row
+    staff.active_sessions_for_terminal(row.id)
+    locked = staff.terminal(terminal_id, lock=True)
+    assert locked is not None
+    return locked
 
 
 def deactivate(session: Session, actor: Actor, terminal_id: Any) -> dict[str, Any]:

@@ -37,7 +37,11 @@ class ProductRepository:
         return list(self.s.scalars(select(CategoryRow).where(CategoryRow.business_id == business_id)
                                    .order_by(CategoryRow.sort_order, CategoryRow.name)))
 
-    def product(self, product_id: uuid.UUID) -> ProductRow | None:
+    def product(self, product_id: uuid.UUID, *, lock: bool = False) -> ProductRow | None:
+        """``lock``: SELECT … FOR UPDATE so concurrent edits of one product (price, recipe) serialise."""
+        if lock:
+            return self.s.scalars(select(ProductRow).where(ProductRow.id == product_id).with_for_update()
+                                  .execution_options(populate_existing=True)).first()
         return self.s.get(ProductRow, product_id)
 
     def code_exists(self, business_id: uuid.UUID, code: str) -> bool:
@@ -74,7 +78,10 @@ class ProductRepository:
         )
 
     # --- choice groups ---------------------------------------------------------------------------------------
-    def group(self, group_id: uuid.UUID) -> ChoiceGroupRow | None:
+    def group(self, group_id: uuid.UUID, *, lock: bool = False) -> ChoiceGroupRow | None:
+        if lock:
+            return self.s.scalars(select(ChoiceGroupRow).where(ChoiceGroupRow.id == group_id).with_for_update()
+                                  .execution_options(populate_existing=True)).first()
         return self.s.get(ChoiceGroupRow, group_id)
 
     def groups(self, business_id: uuid.UUID, ids: Iterable[uuid.UUID] | None = None) -> list[ChoiceGroupRow]:

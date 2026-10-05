@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import { BarChart3, CheckCircle2, Package, Plus, Receipt, Zap } from 'lucide-react';
@@ -6,7 +6,7 @@ import Button from '../../ui/Button';
 import Input from '../../ui/Input';
 import Modal from '../../ui/Modal';
 import Select from '../../ui/Select';
-import { errorMessage } from '../../../services/api';
+import { errorMessage, newIdempotencyKey } from '../../../services/api';
 import { EXPENSE_PAYMENT_METHODS, recordExpense } from '../../../services/expenseService';
 
 interface QuickActionsProps {
@@ -37,6 +37,9 @@ interface Tile {
 export default function QuickActions({ expenseCategories, onRecorded }: QuickActionsProps) {
   const navigate = useNavigate();
   const [dialog, setDialog] = useState<Dialog>(null);
+  // Same key for retries of one submission; a new key after each recorded expense / reopened dialog.
+  const [expenseKey, setExpenseKey] = useState(() => newIdempotencyKey());
+  useEffect(() => setExpenseKey(newIdempotencyKey()), [dialog]);
   const [saved, setSaved] = useState<string | null>(null);
   const [expense, setExpense] = useState({ description: '', category: '', amount: '', method: '' });
   const [submitting, setSubmitting] = useState(false);
@@ -68,8 +71,9 @@ export default function QuickActions({ expenseCategories, onRecorded }: QuickAct
         amount: expense.amount,
         expense_date: today(),
         payment_method: expense.method,
-      });
+      }, expenseKey);
       setSaved(`${saved.code} · ${saved.description}`);
+      setExpenseKey(newIdempotencyKey());
       onRecorded?.();
     } catch (err) {
       setError(errorMessage(err));

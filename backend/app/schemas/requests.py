@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 
 class _Model(BaseModel):
@@ -40,7 +40,7 @@ class TerminalActivateRequest(_Model):
 
 class OrderLine(_Model):
     product_id: str
-    quantity: int
+    quantity: StrictInt  # true/1.0 are not quantities
     selections: dict[str, list[str]] | None = None
 
 
@@ -61,12 +61,12 @@ class CreateOrderRequest(_Model):
 
 class StatusRequest(_Model):
     target: str
-    expected_version: int | None = None
+    expected_version: StrictInt | None = None
 
 
 class CancelRequest(_Model):
     reason: str = Field(max_length=200)
-    expected_version: int | None = None
+    expected_version: StrictInt | None = None
 
 
 class PaymentRequestIn(_Model):
@@ -83,7 +83,7 @@ class RefundRequest(_Model):
 
 
 class SettingsUpdate(_Model):
-    version: int
+    version: StrictInt
     data: dict[str, Any]
 
 

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -8,6 +8,12 @@ import type { PaymentMethod } from '../../types/payment';
 import type { OrderDto, PaymentResultDto } from '../../types/api';
 import { errorMessage, isUnknownOutcome, newIdempotencyKey } from '../../services/api';
 import { recordPayment, type PaymentInput } from '../../services/paymentService';
+import { getOrder } from '../../services/orderService';
+import { notify } from '../../stores/notificationStore';
+import { useFeatureSettings } from '../../stores/featureSettingsStore';
+import { usePreferenceSettings } from '../../stores/preferenceSettingsStore';
+import { alertGates } from '../../utils/liveAlerts';
+import { playSound } from '../../utils/sound';
 import { toApiMethod } from '../../utils/apiMappers';
 import { formatPeso } from '../../utils/currency';
 
@@ -21,25 +27,75 @@ interface CheckoutModalProps {
 
 const QUICK_CASH = [100, 200, 500, 1000];
 
+/** A payment whose outcome is unknown survives closing the dialog or reloading the page, so it is
+ *  always resolved with the SAME key and payload (the server replays it) — never charged twice. */
+interface PendingPayment {
+  key: string;
+  input: PaymentInput;
+}
+const pendingKey = (orderId: string) => `brewsync.pendingPayment.${orderId}`;
+function loadPendingPayment(orderId: string): PendingPayment | null {
+  try {
+    const raw = sessionStorage.getItem(pendingKey(orderId));
+    return raw ? (JSON.parse(raw) as PendingPayment) : null;
+  } catch {
+    return null;
+  }
+}
+function savePendingPayment(orderId: string, value: PendingPayment | null) {
+  try {
+    if (value) sessionStorage.setItem(pendingKey(orderId), JSON.stringify(value));
+    else sessionStorage.removeItem(pendingKey(orderId));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 // Records payments through POST /orders/{id}/payments. The amount is a request: the server
 // validates it against the remaining balance (OVERPAYMENT), computes change/rounding, and
 // issues the sales document when the order becomes fully paid. Split payments = several
 // payments on the same order.
 function CheckoutBody({ order: initial, onClose, onPaid }: Omit<CheckoutModalProps, 'order'> & { order: OrderDto }) {
   const [order, setOrder] = useState(initial);
+  const { flags } = useFeatureSettings();
+  const { settings: prefs } = usePreferenceSettings();
+  const gates = alertGates(flags, prefs);
   const [method, setMethod] = useState<PaymentMethod>('cash');
   const [amount, setAmount] = useState(initial.amount_due);
   const [tendered, setTendered] = useState('');
   const [reference, setReference] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    loadPendingPayment(initial.id)
+      ? 'An earlier payment on this order got no answer from the server. Press Confirm to check it; it will not be charged twice.'
+      : null,
+  );
   const [result, setResult] = useState<PaymentResultDto | null>(null);
   // One key per payment attempt: a retry of the same request is replayed, never duplicated.
-  const attemptKey = useRef<string | null>(null);
+  const restored = useRef(loadPendingPayment(initial.id));
+  const attemptKey = useRef<string | null>(restored.current?.key ?? null);
   // After a timeout the payment may already be recorded: the form is frozen and the next press
   // re-sends the identical request with the same key (replayed by the server, never doubled).
-  const lastInput = useRef<PaymentInput | null>(null);
-  const [uncertain, setUncertain] = useState(false);
+  const lastInput = useRef<PaymentInput | null>(restored.current?.input ?? null);
+  const [uncertain, setUncertain] = useState(restored.current !== null);
+
+  // The order passed in may be stale (another terminal paid, an earlier attempt succeeded):
+  // always start from the server's current balance and payments.
+  useEffect(() => {
+    let cancelled = false;
+    getOrder(initial.id)
+      .then((fresh) => {
+        if (cancelled) return;
+        setOrder(fresh);
+        if (!restored.current) setAmount(fresh.amount_due);
+      })
+      .catch(() => {
+        /* keep the given order; the server still validates every payment */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [initial.id]);
 
   const touch = <T,>(setter: (v: T) => void) => (v: T) => {
     if (uncertain) return;
@@ -51,7 +107,7 @@ function CheckoutBody({ order: initial, onClose, onPaid }: Omit<CheckoutModalPro
   const amountValue = Number(amount);
   const tenderedValue = Number(tendered);
   const validAmount = amount.trim() !== '' && Number.isFinite(amountValue) && amountValue > 0;
-  const canConfirm = validAmount && (method !== 'cash' || tendered.trim() === '' || tenderedValue >= amountValue);
+  const canConfirm = (uncertain && lastInput.current !== null) || (validAmount && (method !== 'cash' || tendered.trim() === '' || tenderedValue >= amountValue));
 
   const submit = async () => {
     if (!canConfirm || submitting) return;
@@ -69,7 +125,12 @@ function CheckoutBody({ order: initial, onClose, onPaid }: Omit<CheckoutModalPro
       const paid = await recordPayment(order.id, input, attemptKey.current);
       attemptKey.current = null;
       lastInput.current = null;
+      savePendingPayment(order.id, null);
       setUncertain(false);
+      if (gates.paymentSound) playSound('success');
+      if (gates.payments)
+        notify({ tone: 'success', title: `Payment recorded · #${paid.number}`,
+                 message: paid.payment_status === 'paid' ? 'Paid in full' : `Remaining ${formatPeso(Number(paid.amount_due))}` }, 4000);
       setOrder(paid);
       onPaid(paid);
       setResult(paid);
@@ -78,13 +139,17 @@ function CheckoutBody({ order: initial, onClose, onPaid }: Omit<CheckoutModalPro
       setReference('');
     } catch (err) {
       if (isUnknownOutcome(err)) {
+        savePendingPayment(order.id, { key: attemptKey.current!, input });
         setUncertain(true);
         setError('No answer from the server — this payment may already be recorded. Press Confirm again to check; it will not be charged twice.');
       } else {
         attemptKey.current = null;
         lastInput.current = null;
+        savePendingPayment(order.id, null);
         setUncertain(false);
         setError(errorMessage(err));
+        if (gates.paymentSound) playSound('error');
+        if (gates.payments) notify({ tone: 'danger', title: `Payment not recorded · #${order.number}`, message: errorMessage(err) }, 6000);
       }
     } finally {
       setSubmitting(false);
@@ -130,7 +195,11 @@ function CheckoutBody({ order: initial, onClose, onPaid }: Omit<CheckoutModalPro
             Pay Later
           </Button>
           <Button variant="primary" disabled={!canConfirm || submitting} onClick={() => void submit()}>
-            {submitting ? 'Recording…' : `Record Payment · ${validAmount ? formatPeso(amountValue) : '—'}`}
+            {submitting
+              ? 'Recording…'
+              : uncertain && lastInput.current
+                ? `Check payment · ${formatPeso(Number(lastInput.current.amount))}`
+                : `Record Payment · ${validAmount ? formatPeso(amountValue) : '—'}`}
           </Button>
         </>
       }

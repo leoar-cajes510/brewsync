@@ -172,7 +172,7 @@ def set_recipe(session: Session, actor: Actor, product_id: str, lines: list[dict
         raise validation("lines is required (send [] to clear the recipe)")
     repo = ProductRepository(session)
     pid = parse_uuid(product_id, "product")
-    product = repo.product(pid)
+    product = repo.product(pid, lock=True)  # serialise concurrent recipe saves
     if product is None or product.business_id != actor.business_id:
         raise not_found("product")
     old_recipe = repo.recipes([pid]).get(str(pid))
@@ -220,7 +220,10 @@ def list_movements(session: Session, actor: Actor, subject_type: SubjectType, su
     """Newest-first stock movements of one product or ingredient (append-only ledger)."""
     actor.require(PermissionKey.INVENTORY_VIEW if subject_type is SubjectType.PRODUCT else PermissionKey.INGREDIENTS_VIEW)
     sid = parse_uuid(subject_id, "stock subject")
-    rows = InventoryRepository(session).movements(actor.business_id, StockKey(subject_type, str(sid)))
+    key = StockKey(subject_type, str(sid))
+    if key not in InventoryRepository(session).levels_for(actor.business_id, [key]):
+        raise not_found("stock subject")  # another business's (or unknown) id: not found, not an empty list
+    rows = InventoryRepository(session).movements(actor.business_id, key)
     return [movement_dto(r) for r in rows]
 
 

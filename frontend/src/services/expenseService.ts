@@ -18,6 +18,7 @@ export interface NewExpense {
   notes?: string;
 }
 
-export const recordExpense = (expense: NewExpense) => api.post<ExpenseDto>('/expenses', expense);
+/** ``idempotencyKey``: keep the same key for retries of one form submission (no duplicate expense). */
+export const recordExpense = (expense: NewExpense, idempotencyKey?: string) => api.post<ExpenseDto>('/expenses', expense, idempotencyKey);
 
 export const updateExpense = (id: string, patch: Partial<NewExpense>) => api.patch<ExpenseDto>(`/expenses/${id}`, patch);

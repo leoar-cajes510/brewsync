@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { downloadCsv, isoDate } from '../../utils/csv';
 import { Download, FolderTree, LayoutGrid, List, PackagePlus, Plus, SearchX } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -14,7 +15,7 @@ import ProductTable, { ProductGrid, productStatus, type ProductActions, type Pro
 import { ActionFeedback } from '../../components/receipts/ReceiptPrinter';
 import type { CatalogProduct, CatalogProductDraft } from '../../types/product';
 import LoadingState from '../../components/ui/LoadingState';
-import { errorMessage } from '../../services/api';
+import { errorMessage, newIdempotencyKey } from '../../services/api';
 import { addProduct, duplicateProduct, loadCatalog, removeProduct, saveProductImage, toggleProductActive, updateProduct, useCatalog } from '../../stores/catalogStore';
 import { createCategory, deleteCategory, listChoiceGroups, updateCategory } from '../../services/productService';
 import { useAuth } from '../../stores/authStore';
@@ -49,6 +50,8 @@ export default function AdminProductsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
   const [form, setForm] = useState<FormTarget>(null);
+  // One key per opened "Add product" form: a retried save returns the first result, never a duplicate.
+  const createKey = useMemo(() => newIdempotencyKey(), [form]);
   const [viewing, setViewing] = useState<CatalogProduct | null>(null);
   const [deleting, setDeleting] = useState<CatalogProduct | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -94,7 +97,7 @@ export default function AdminProductsPage() {
       productId = form.product.id;
       message = `Saved changes to ${draft.name}`;
     } else {
-      const created = await addProduct(fields);
+      const created = await addProduct(fields, createKey);
       productId = created.id;
       message = `${draft.name} added to the catalog as #${created.code}`;
     }
@@ -199,7 +202,19 @@ export default function AdminProductsPage() {
           />
         </div>
         <div className="products-toolbar__actions">
-          <Button icon={<Download size={15} />} disabled title="Available in a later phase">
+          <Button
+            icon={<Download size={15} />}
+            disabled={!filtered.length}
+            title="Export the listed products (CSV)"
+            onClick={() =>
+              downloadCsv(
+                `brewsync-catalog-${isoDate()}.csv`,
+                ['Code', 'Name', 'Category', 'Price', 'Tax', 'Track Units', 'On Hand', 'Available', 'Shown on POS', 'Active'],
+                filtered.map((p) => [p.code, p.name, p.category, p.price.toFixed(2), p.taxClass, p.trackUnits ? 'yes' : 'no',
+                                     p.trackUnits ? p.stock : '', p.trackUnits ? p.sellable : '', p.available ? 'yes' : 'no', p.active ? 'yes' : 'no']),
+              )
+            }
+          >
             Export Catalog
           </Button>
           <Button icon={<FolderTree size={15} />} onClick={() => setManagingCategories(true)}>

@@ -5,6 +5,7 @@ import Button from '../ui/Button';
 import Modal from '../ui/Modal';
 import ReceiptPreview from '../receipts/ReceiptPreview';
 import RefundDialog from './RefundDialog';
+import { printKitchenTicket } from '../../utils/kitchenTicket';
 import { useFeatureSettings } from '../../stores/featureSettingsStore';
 import { can, useAuth } from '../../stores/authStore';
 import { transactionStatus } from './TransactionTable';
@@ -189,7 +190,19 @@ export default function TransactionDetails({ transaction: t, business, onClose, 
           <Button icon={<Printer size={15} />} onClick={() => setReceiptOpen(true)}>
             View Receipt
           </Button>
-          <Button icon={<ChefHat size={15} />} disabled title="Available in a later phase">
+          <Button
+            icon={<ChefHat size={15} />}
+            title="Print a preparation slip (not a receipt)"
+            onClick={() =>
+              printKitchenTicket({
+                number: t.orderNumber,
+                orderType: t.orderType,
+                tag: t.tag,
+                placedAt: t.issuedAt,
+                items: t.items.map((i) => ({ name: i.name, quantity: i.quantity, choices: i.modifiers.map((m) => m.label) })),
+              })
+            }
+          >
             Kitchen Ticket
           </Button>
         </div>

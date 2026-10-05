@@ -24,7 +24,8 @@ export interface NewProduct {
   choice_group_ids?: string[];
 }
 
-export const createProduct = (product: NewProduct) => api.post<ProductDto>('/products', product);
+/** ``idempotencyKey``: keep the same key for retries of one form submission (no duplicate product). */
+export const createProduct = (product: NewProduct, idempotencyKey?: string) => api.post<ProductDto>('/products', product, idempotencyKey);
 
 export type ProductPatch = Partial<
   Pick<ProductDto, 'name' | 'description' | 'category_id' | 'price' | 'tax_class' | 'available' | 'active' | 'choice_group_ids'>
@@ -53,7 +54,7 @@ export interface PosMenuDto {
   stock: StockLevelDto[];
   availability?: Record<string, MenuAvailabilityDto>;
 }
-export const getPosMenu = () => api.get<PosMenuDto>('/pos/menu');
+export const getPosMenu = (background = false) => (background ? api.poll : api.get)<PosMenuDto>('/pos/menu');
 
 export const updateCategory = (id: string, patch: Partial<Pick<CategoryDto, 'name' | 'sort_order' | 'active'>>) =>
   api.patch<CategoryDto>(`/categories/${id}`, patch);

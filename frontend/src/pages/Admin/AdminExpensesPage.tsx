@@ -14,7 +14,7 @@ import { ActionFeedback } from '../../components/receipts/ReceiptPrinter';
 import { formatPeso } from '../../utils/currency';
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS, formatExpenseDate, toISODate, type Expense, type ExpenseCategory, type ExpenseDraft, type ExpensePaymentMethod } from '../../types/expense';
 import type { ExpenseDto } from '../../types/api';
-import { errorMessage } from '../../services/api';
+import { errorMessage, newIdempotencyKey } from '../../services/api';
 import { listExpenses, recordExpense, updateExpense } from '../../services/expenseService';
 import { listStaff } from '../../services/staffService';
 import '../../components/admin/expenses/expenses.css';
@@ -86,6 +86,8 @@ export default function AdminExpensesPage() {
   const [category, setCategory] = useState(ALL);
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
+  // One key per opened form: a retried save returns the first result, never a duplicate expense.
+  const createKey = useMemo(() => newIdempotencyKey(), [formOpen]);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -175,7 +177,7 @@ export default function AdminExpensesPage() {
         await updateExpense(editing.id, body);
         setFeedback(`#${editing.code} updated`);
       } else {
-        const created = await recordExpense(body);
+        const created = await recordExpense(body, createKey);
         setFeedback(`#${created.code} · ${formatPeso(draft.amount)} expense recorded`);
       }
       await refresh();

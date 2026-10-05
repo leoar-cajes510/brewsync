@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { exportReceipts, isoDate } from '../../utils/csv';
 import { Download, ReceiptText, RefreshCw } from 'lucide-react';
 import LiveClock from '../../components/layout/LiveClock';
 import Badge from '../../components/ui/Badge';
@@ -164,7 +165,14 @@ export default function ReceiptsPage() {
           </div>
           <div className="receipts__count">
             Showing <strong>{visible.length}</strong> of {dateScoped.length} transactions
-            <button type="button" className="icon-btn" aria-label="Export" title="Export (available in a later phase)" disabled>
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="Export"
+              title={visible.length ? 'Export the listed receipts (CSV)' : 'Nothing to export'}
+              disabled={!visible.length}
+              onClick={() => exportReceipts(`brewsync-receipts-${isoDate()}.csv`, visible)}
+            >
               <Download size={15} />
             </button>
           </div>

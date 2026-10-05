@@ -10,6 +10,14 @@ from starlette.concurrency import run_in_threadpool
 from app.core.exceptions import AppError
 from app.domain.inventory import SubjectType
 from app.routers.api import authed, idem_key, respond, respond_pair
+from app.services.base import idempotent
+
+
+def once(session, actor, scope, key, body, run):  # type: ignore[no-untyped-def]
+    """Creation endpoints without a natural unique key: with an Idempotency-Key a double-click or a
+    retried request returns the first result instead of creating a duplicate. (Optional header, so
+    older clients keep working.)"""
+    return idempotent(session, actor.business_id, scope, key, body, run) if key else run()
 from app.schemas.requests import (
     ArchiveRequest, CancelRequest, CreateOrderRequest, PaymentRequestIn, RefundRequest, StatusRequest,
 )
@@ -49,7 +57,8 @@ def list_products(request: Request):  # type: ignore[no-untyped-def]
 
 @router.post("/products", tags=["catalog"])
 def create_product(request: Request, body: dict[str, Any] = Body(...)):  # type: ignore[no-untyped-def]
-    return respond(authed(request, lambda s, a: product_service.create_product(s, a, body)), 201)
+    return respond_pair(authed(request, lambda s, a: once(s, a, "POST /products", idem_key(request), body,
+                                                          lambda: (201, product_service.create_product(s, a, body)))))
 
 
 @router.delete("/products/{product_id}", tags=["catalog"])
@@ -323,7 +332,8 @@ def list_expenses(request: Request):  # type: ignore[no-untyped-def]
 
 @router.post("/expenses", tags=["expenses"])
 def record_expense(request: Request, body: dict[str, Any] = Body(...)):  # type: ignore[no-untyped-def]
-    return respond(authed(request, lambda s, a: expense_service.record_expense(s, a, body)), 201)
+    return respond_pair(authed(request, lambda s, a: once(s, a, "POST /expenses", idem_key(request), body,
+                                                          lambda: (201, expense_service.record_expense(s, a, body)))))
 
 
 @router.patch("/expenses/{expense_id}", tags=["expenses"])
@@ -333,6 +343,6 @@ def update_expense(expense_id: str, request: Request, body: dict[str, Any] = Bod
 
 # --- analytics --------------------------------------------------------------------------------------------------------
 @router.get("/analytics/sales", tags=["analytics"])
-def analytics_sales(request: Request, start: str = Query(...), end: str = Query(...)):  # type: ignore[no-untyped-def]
+def analytics_sales(request: Request, start: str | None = Query(default=None), end: str | None = Query(default=None)):  # type: ignore[no-untyped-def]
     """Completed sales (net of refunds) and expenses in [start, end] for the Admin analytics views."""
     return respond(authed(request, lambda s, a: analytics_service.sales_feed(s, a, start, end)))

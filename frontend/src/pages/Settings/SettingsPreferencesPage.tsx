@@ -37,9 +37,9 @@ const GROUPS: { key: string; title: string; icon: LucideIcon; rows: Row[] }[] = 
     title: 'Interface & Sounds',
     icon: Volume2,
     rows: [
-      { key: 'interfaceSounds', label: 'Interface Sounds', description: 'Play subtle sounds for supported interface interactions.', feature: 'soundEffects', inactive: true },
-      { key: 'paymentSound', label: 'Payment Success Sound', description: 'Play a chime when a payment is completed.', feature: 'soundEffects', inactive: true },
-      { key: 'notifications', label: 'Notifications', description: 'Show on-screen notifications for supported events.', inactive: true },
+      { key: 'interfaceSounds', label: 'Interface Sounds', description: 'Play subtle sounds for supported interface interactions.', feature: 'soundEffects' },
+      { key: 'paymentSound', label: 'Payment Success Sound', description: 'Play a chime when a payment is completed.', feature: 'soundEffects' },
+      { key: 'notifications', label: 'Notifications', description: 'Show on-screen notifications for supported events.' },
     ],
   },
   {
@@ -47,7 +47,7 @@ const GROUPS: { key: string; title: string; icon: LucideIcon; rows: Row[] }[] = 
     title: 'Live System Behavior',
     icon: RefreshCw,
     rows: [
-      { key: 'liveUpdates', label: 'Live Updates', description: 'Update orders, stock, and other supported information in real time.', feature: 'liveUpdates', inactive: true },
+      { key: 'liveUpdates', label: 'Live Updates', description: 'Refresh the Orders board every 15 s and POS stock every 30 s (also needs Live Updates in Features).', feature: 'liveUpdates' },
       { key: 'autoRefresh', label: 'Auto Refresh', description: 'Refresh supported screens automatically without reloading the page.' },
     ],
   },
@@ -56,10 +56,10 @@ const GROUPS: { key: string; title: string; icon: LucideIcon; rows: Row[] }[] = 
     title: 'Notification Preferences',
     icon: Bell,
     rows: [
-      { key: 'newOrderAlerts', label: 'New Order Alerts', description: 'Notify staff when a new order is placed.', dependsOn: 'notifications', feature: 'orderAlerts', inactive: true },
-      { key: 'orderWaitingAlerts', label: 'Order Waiting Alerts', description: 'Notify staff when an order passes the waiting threshold.', dependsOn: 'notifications', feature: 'orderAlerts', inactive: true },
-      { key: 'lowStockAlerts', label: 'Low Stock Alerts', description: 'Notify staff when stock reaches the low stock threshold.', dependsOn: 'notifications', feature: 'lowStockAlerts', inactive: true },
-      { key: 'paymentAlerts', label: 'Payment Alerts', description: 'Notify staff about completed or failed payments.', dependsOn: 'notifications', inactive: true },
+      { key: 'newOrderAlerts', label: 'New Order Alerts', description: 'Notify staff when a new order is placed.', dependsOn: 'notifications', feature: 'orderAlerts' },
+      { key: 'orderWaitingAlerts', label: 'Order Waiting Alerts', description: 'Notify staff when an order passes the waiting threshold.', dependsOn: 'notifications', feature: 'orderAlerts' },
+      { key: 'lowStockAlerts', label: 'Low Stock Alerts', description: 'Notify staff when stock reaches the low stock threshold.', dependsOn: 'notifications', feature: 'lowStockAlerts' },
+      { key: 'paymentAlerts', label: 'Payment Alerts', description: 'Notify staff about completed or failed payments.', dependsOn: 'notifications' },
     ],
   },
   {
@@ -134,9 +134,9 @@ export default function SettingsPreferencesPage() {
   const sounds = [form.interfaceSounds && 'Interface', form.paymentSound && 'Payment'].filter(Boolean) as string[];
   const alertsOn = ALERT_KEYS.filter((k) => form[k]).length;
   const summary: { key: string; label: string; value: string; on: boolean }[] = [
-    { key: 'sounds', label: 'Sounds', value: `${sounds.length ? `On (${sounds.join(' & ')})` : 'Off'} · not active yet`, on: false },
-    { key: 'live', label: 'Live Updates', value: `Not active yet${form.autoRefresh ? ' · Auto refresh on' : ''}`, on: form.autoRefresh },
-    { key: 'notifications', label: 'Notifications', value: `${form.notifications ? `On (${alertsOn} of ${ALERT_KEYS.length} alerts)` : 'Off'} · not active yet`, on: false },
+    { key: 'sounds', label: 'Sounds', value: sounds.length ? `On (${sounds.join(' & ')})` : 'Off', on: sounds.length > 0 },
+    { key: 'live', label: 'Live Updates', value: `${form.liveUpdates ? 'On' : 'Off'}${form.autoRefresh ? ' · Auto refresh on' : ''}`, on: form.liveUpdates || form.autoRefresh },
+    { key: 'notifications', label: 'Notifications', value: form.notifications ? `On (${alertsOn} of ${ALERT_KEYS.length} alerts)` : 'Off', on: form.notifications },
     { key: 'orderType', label: 'Default Order Type', value: orderTypeLabel(form.defaultOrderType), on: true },
     {
       key: 'confirm',

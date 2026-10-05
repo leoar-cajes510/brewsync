@@ -75,6 +75,8 @@ export function newIdempotencyKey(): string {
 }
 
 interface RequestOptions {
+  /** Automatic polling: marked so the server never counts it as activity (idle timeout still applies). */
+  background?: boolean;
   body?: unknown;
   idempotencyKey?: string;
   /** Unauthenticated endpoints (setup, activation, login) must not trigger the session-ended flow. */
@@ -94,6 +96,7 @@ export async function request<T>(method: string, path: string, options: RequestO
   const device = deviceStore.get();
   if (device) headers['X-Device-Credential'] = device;
   if (options.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey;
+  if (options.background) headers['X-BrewSync-Background'] = '1';
   Object.assign(headers, options.headers ?? {});
 
   let response: Response;
@@ -146,6 +149,8 @@ function safeJson(text: string): unknown {
 
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
+  /** GET for automatic refresh/polling (does not keep an unattended session alive). */
+  poll: <T>(path: string) => request<T>('GET', path, { background: true }),
   post: <T>(path: string, body?: unknown, idempotencyKey?: string) => request<T>('POST', path, { body: body ?? {}, idempotencyKey }),
   put: <T>(path: string, body: unknown) => request<T>('PUT', path, { body }),
   patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, { body }),

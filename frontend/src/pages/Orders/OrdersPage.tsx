@@ -17,6 +17,8 @@ import { cancelOrder, changeStatus, listActiveOrders } from '../../services/orde
 import { confirmPayment, voidPayment } from '../../services/paymentService';
 import { orderView } from '../../utils/apiMappers';
 import { useTerms } from '../../stores/terminologySettingsStore';
+import { useFeatureSettings } from '../../stores/featureSettingsStore';
+import { alertGates } from '../../utils/liveAlerts';
 import { usePreferenceSettings } from '../../stores/preferenceSettingsStore';
 import '../../components/orders/orders.css';
 
@@ -50,12 +52,13 @@ export default function OrdersPage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const clearFeedback = useCallback(() => setFeedback(null), []);
 
-  const refresh = useCallback(async () => {
-    setLoadError(null);
+  const refresh = useCallback(async (background = false) => {
+    if (!background) setLoadError(null);
     try {
-      setDtos(await listActiveOrders());
+      setDtos(await listActiveOrders(background));
+      setLoadError(null);
     } catch (err) {
-      setLoadError(errorMessage(err));
+      if (!background) setLoadError(errorMessage(err));
     }
   }, []);
 
@@ -67,11 +70,16 @@ export default function OrdersPage() {
   // documented fallback until a real-time transport is chosen (Q-ARCH-3).
   const { settings: prefs } = usePreferenceSettings();
   const idle = !busyId && !collecting && !cancelling;
+  // Live Updates also keep the board current. Background requests never extend the session.
+  const { flags } = useFeatureSettings();
+  const live = alertGates(flags, prefs).live;
   useEffect(() => {
-    if (!prefs.autoRefresh || !idle) return;
-    const id = window.setInterval(() => void refresh(), AUTO_REFRESH_MS);
+    if (!(prefs.autoRefresh || live) || !idle) return;
+    const id = window.setInterval(() => {
+      if (!document.hidden) void refresh(true);
+    }, AUTO_REFRESH_MS);
     return () => window.clearInterval(id);
-  }, [prefs.autoRefresh, idle, refresh]);
+  }, [prefs.autoRefresh, live, idle, refresh]);
 
   const orders = useMemo(() => (dtos ?? []).map(orderView), [dtos]);
 

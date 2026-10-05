@@ -13,6 +13,7 @@ import ProtectedRoute from '../components/auth/ProtectedRoute';
 import AdminGuard from '../components/auth/AdminGuard';
 
 import LoginPage from '../pages/Login/LoginPage';
+import { signOut } from '../stores/authStore';
 import POSPage from '../pages/POS/POSPage';
 import OrdersPage from '../pages/Orders/OrdersPage';
 
@@ -25,7 +26,7 @@ const page = (load: () => Promise<{ default: ComponentType }>) => async () => ({
 const adminActions = (
   <>
     <Button icon={<CalendarDays size={16} />}>{formatLongDate(new Date())}</Button>
-    <Button icon={<Lock size={16} />} disabled title="Lock Admin is available in a later phase">
+    <Button icon={<Lock size={16} />} title="Lock this terminal: the session ends and the next person must sign in" onClick={() => void signOut('lock')}>
       Lock Admin
     </Button>
   </>

@@ -84,7 +84,9 @@ class StaffRepository:
     # --- terminals ---------------------------------------------------------------------------------------
     def terminal(self, terminal_id: uuid.UUID, *, lock: bool = False) -> TerminalRow | None:
         stmt = select(TerminalRow).where(TerminalRow.id == terminal_id)
-        return self.s.scalars(stmt.with_for_update() if lock else stmt).first()
+        if lock:
+            stmt = stmt.with_for_update().execution_options(populate_existing=True)
+        return self.s.scalars(stmt).first()
 
     def terminal_by_code(self, business_id: uuid.UUID, code: str, *, lock: bool = False) -> TerminalRow | None:
         stmt = select(TerminalRow).where(TerminalRow.business_id == business_id, TerminalRow.code == code)
@@ -144,7 +146,8 @@ class StaffRepository:
 
     def active_sessions_for_terminal(self, terminal_id: uuid.UUID) -> list[SessionRow]:
         return list(self.s.scalars(select(SessionRow).where(SessionRow.terminal_id == terminal_id,
-                                                            SessionRow.ended_at.is_(None)).with_for_update()))
+                                                            SessionRow.ended_at.is_(None))
+                                   .order_by(SessionRow.id).with_for_update()))
 
     @staticmethod
     def to_domain_session(row: SessionRow) -> DomainSession:

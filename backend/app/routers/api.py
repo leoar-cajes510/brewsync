@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from collections.abc import Callable
 from typing import Any, TypeVar
 
@@ -44,6 +46,14 @@ def tx(fn: Callable[[Session], T]) -> T:
         raise AppError("VALIDATION_ERROR", 422, "A value in the request cannot be stored (invalid character or out of range)") from exc
 
 
+# Endpoints reachable without a session (setup is guarded by the installer token, activation by
+# the one-time code, login by the credentials themselves).
+PUBLIC_API_PATHS = frozenset({
+    "/api/v1/setup/status", "/api/v1/setup/complete", "/api/v1/setup/first-terminal",
+    "/api/v1/auth/login", "/api/v1/terminals/activate",
+})
+
+
 def bearer(request: Request) -> str | None:
     header = request.headers.get("authorization", "")
     return header[7:].strip() if header.lower().startswith("bearer ") else None
@@ -51,9 +61,12 @@ def bearer(request: Request) -> str | None:
 
 def authed(request: Request, fn: Callable[[Session, Actor], T], *, allow_credential_change: bool = False) -> T:
     token = bearer(request)
+    # Background polling (live updates, auto refresh) marks itself so it never extends the idle
+    # timeout (Q-AUTH-4): an unattended terminal still signs out on schedule.
+    user_initiated = request.headers.get("x-brewsync-background") != "1"
 
     def run(session: Session) -> T:
-        actor = authenticate(session, token)
+        actor = authenticate(session, token, user_initiated=user_initiated)
         if actor.must_change_credential and not allow_credential_change:
             raise AppError("CREDENTIAL_CHANGE_REQUIRED", 403, "The temporary credential must be changed first")
         return fn(session, actor)
@@ -93,3 +106,29 @@ async def request_validation_handler(_: Request, exc: RequestValidationError) ->
     message = f"{first['field']}: {first['message']}" if first["field"] else first["message"]
     return JSONResponse(status_code=422, content={"error": {"code": "VALIDATION_ERROR", "message": message,
                                                             "details": {"fields": fields}}})
+
+
+_log = logging.getLogger("brewsync")
+
+
+async def database_error_handler(_: Request, exc: Exception) -> JSONResponse:
+    """The transaction was rolled back (deadlock, lock/statement timeout, dropped connection). Nothing
+    was written, so the client may retry the SAME request (same Idempotency-Key). No SQL is exposed."""
+    _log.warning("database error: %s", type(getattr(exc, "orig", exc)).__name__)
+    return JSONResponse(status_code=503, content={"error": {
+        "code": "SERVICE_BUSY", "message": "The server was busy and nothing was saved. Please try again.", "details": {}}})
+
+
+async def conflict_error_handler(_: Request, exc: Exception) -> JSONResponse:
+    """A uniqueness/reference rule refused the write (usually two people changing the same thing at
+    once). Rolled back; the constraint name and SQL are not exposed."""
+    _log.warning("integrity error: %s", type(getattr(exc, "orig", exc)).__name__)
+    return JSONResponse(status_code=409, content={"error": {
+        "code": "CONFLICT", "message": "This change conflicts with another change made at the same time. "
+                                       "Reload and try again.", "details": {}}})
+
+
+async def unexpected_error_handler(_: Request, exc: Exception) -> JSONResponse:
+    _log.exception("unhandled error", exc_info=exc)
+    return JSONResponse(status_code=500, content={"error": {
+        "code": "INTERNAL_ERROR", "message": "Something went wrong on the server. Nothing was saved.", "details": {}}})

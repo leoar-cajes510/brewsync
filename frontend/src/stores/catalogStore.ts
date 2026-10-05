@@ -119,7 +119,7 @@ async function ensureCategory(name: string, codePrefix?: string): Promise<string
 /* ---------------------------- Products ---------------------------- */
 
 /** Creates the product; resolves to the server-generated code. */
-export async function addProduct(draft: CatalogProductDraft): Promise<{ id: string; code: string }> {
+export async function addProduct(draft: CatalogProductDraft, idempotencyKey?: string): Promise<{ id: string; code: string }> {
   if (!draft.taxClass) throw new Error('Choose whether the product is taxable.');
   const categoryId = await ensureCategory(draft.category, draft.categoryPrefix);
   const created = await products.createProduct({
@@ -132,7 +132,7 @@ export async function addProduct(draft: CatalogProductDraft): Promise<{ id: stri
     track_units: draft.trackUnits,
     choice_group_ids: draft.choiceGroupIds,
     ...(draft.trackUnits ? { initial_stock: draft.stock, low_stock_threshold: draft.lowStockThreshold } : {}),
-  });
+  }, idempotencyKey);
   await loadCatalog();
   return { id: created.id, code: created.code };
 }

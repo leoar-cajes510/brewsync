@@ -23,6 +23,9 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import IdentificationDialog from '../../components/pos/IdentificationDialog';
 import { usePreferenceSettings } from '../../stores/preferenceSettingsStore';
 import { useFeatureSettings } from '../../stores/featureSettingsStore';
+import { markOwnOrder } from '../../stores/notificationStore';
+import { alertGates } from '../../utils/liveAlerts';
+import { playSound } from '../../utils/sound';
 import '../../components/pos/pos.css';
 
 const ALL = 'all';
@@ -74,8 +77,8 @@ interface Menu {
 }
 
 /** POS menu from the API: active + available products, their choice groups and stock. */
-async function loadMenu(): Promise<Menu> {
-  const { categories, products, choice_groups: groups, discounts, stock: levels, availability = {} } = await catalogApi.getPosMenu();
+async function loadMenu(background = false): Promise<Menu> {
+  const { categories, products, choice_groups: groups, discounts, stock: levels, availability = {} } = await catalogApi.getPosMenu(background);
   const groupById = new Map<string, ChoiceGroup>(
     groups
       .filter((g) => g.active !== false)
@@ -152,6 +155,7 @@ export default function POSPage() {
   // Settings → Preferences (PREF-01): default order type for a new sale; confirm before removing a line.
   const { settings: prefs, loaded: prefsLoaded } = usePreferenceSettings();
   const { flags } = useFeatureSettings();
+  const gates = alertGates(flags, prefs);
   const PREF_TYPE: Record<string, OrderType> = { dineIn: 'dine-in', takeout: 'takeout', delivery: 'delivery' };
   const appliedDefault = useRef(false);
   useEffect(() => {
@@ -185,18 +189,29 @@ export default function POSPage() {
     setPending(value);
   };
 
-  const refreshMenu = useCallback(async () => {
-    setMenuError(null);
+  const refreshMenu = useCallback(async (background = false) => {
+    if (!background) setMenuError(null);
     try {
-      setMenu(await loadMenu());
+      setMenu(await loadMenu(background));
+      setMenuError(null);
     } catch (err) {
-      setMenuError(errorMessage(err));
+      if (!background) setMenuError(errorMessage(err)); // a failed background refresh keeps the current menu
     }
   }, []);
 
   useEffect(() => {
     void refreshMenu();
   }, [refreshMenu]);
+
+  // Live Updates (Settings → Features + Preferences): stock/availability refresh in the background
+  // every 30 s while the tab is visible. The server still re-checks everything at order time.
+  useEffect(() => {
+    if (!gates.live) return;
+    const id = window.setInterval(() => {
+      if (!document.hidden) void refreshMenu(true);
+    }, 30_000);
+    return () => window.clearInterval(id);
+  }, [gates.live, refreshMenu]);
 
   // Server-authoritative totals: re-quote whenever the cart or discount changes.
   useEffect(() => {
@@ -249,6 +264,7 @@ export default function POSPage() {
   };
 
   const handleSelectProduct = (product: Product) => {
+    if (gates.tapSound) playSound('tap');
     setSelectedProductId(product.id);
     if (product.choiceGroups.length > 0) setChoiceProduct(product);
     else dispatch({ type: 'add', product, choices: [] });
@@ -273,6 +289,7 @@ export default function POSPage() {
     : [];
 
   const finishPlaced = (order: OrderDto) => {
+    markOwnOrder(order.id);
     orderKey.current = null;
     updatePending(null);
     resetOrder();

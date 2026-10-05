@@ -294,7 +294,7 @@ export default function AdminChoicesPage() {
           ]}
         />
         <div className="choice-toolbar__actions">
-          <Button icon={<SlidersHorizontal size={15} />} disabled title="Reordering comes in a later phase">
+          <Button icon={<SlidersHorizontal size={15} />} disabled title="Not available: choice groups have no stored order yet (needs a database change); products show their linked groups in the order chosen on the product">
             Reorder Groups
           </Button>
           <Button variant="primary" icon={<Plus size={16} />} onClick={openAdd}>

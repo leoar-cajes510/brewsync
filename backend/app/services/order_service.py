@@ -220,7 +220,11 @@ def submission_status(session: Session, actor: Actor, key: str) -> dict[str, Any
     if record is None:
         return {"status": "not_created"}
     order_id = (record.response or {}).get("id")
-    return {"status": "created", "order": get_order(session, actor, str(order_id)) if order_id else record.response}
+    # The submitter may lack orders.view: return the current order only when they may see it,
+    # otherwise the response that was stored for their own submission.
+    if order_id and PermissionKey.ORDERS_VIEW.value in actor.permissions:
+        return {"status": "created", "order": get_order(session, actor, str(order_id))}
+    return {"status": "created", "order": record.response}
 
 
 def _load(session: Session, actor: Actor, order_id: str, *, lock: bool):  # type: ignore[no-untyped-def]

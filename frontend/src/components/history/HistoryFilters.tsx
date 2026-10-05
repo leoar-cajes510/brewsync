@@ -39,13 +39,15 @@ const paymentTabs = [
 ];
 
 interface HistoryFiltersProps {
+  /** Downloads the currently filtered list as CSV (undefined = nothing to export). */
+  onExport?: () => void;
   value: HistoryFilterState;
   onChange: (next: HistoryFilterState) => void;
   cashiers: string[];
   todayLabel: string;
 }
 
-export default function HistoryFilters({ value, onChange, cashiers, todayLabel }: HistoryFiltersProps) {
+export default function HistoryFilters({ value, onChange, cashiers, todayLabel, onExport }: HistoryFiltersProps) {
   const set = <K extends keyof HistoryFilterState>(key: K, v: HistoryFilterState[K]) => onChange({ ...value, [key]: v });
 
   return (
@@ -92,7 +94,7 @@ export default function HistoryFilters({ value, onChange, cashiers, todayLabel }
             ]}
           />
         </label>
-        <button type="button" className="icon-btn" aria-label="Export" title="Export (available in a later phase)" disabled>
+        <button type="button" className="icon-btn" aria-label="Export" title={onExport ? 'Export the listed transactions (CSV)' : 'Nothing to export'} disabled={!onExport} onClick={onExport}>
           <Download size={15} />
         </button>
       </div>

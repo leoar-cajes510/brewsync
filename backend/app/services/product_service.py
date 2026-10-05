@@ -163,7 +163,7 @@ def update_product(session: Session, actor: Actor, product_id: str, data: dict[s
     """Edit price, taxability, availability, name. Affects new orders only (snapshots, R0.5)."""
     actor.require(PermissionKey.PRODUCTS_EDIT)
     repo = ProductRepository(session)
-    row = repo.product(parse_uuid(product_id, "product"))
+    row = repo.product(parse_uuid(product_id, "product"), lock=True)
     if row is None or row.business_id != actor.business_id:
         raise not_found("product")
     before = product_dto(row)
@@ -446,7 +446,7 @@ def update_choice_group(session: Session, actor: Actor, group_id: str, data: dic
     actor.require(PermissionKey.CHOICES_MANAGE)
     repo = ProductRepository(session)
     gid = parse_uuid(group_id, "choice group")
-    row = repo.group(gid)
+    row = repo.group(gid, lock=True)  # serialise concurrent edits of one group
     if row is None or row.business_id != actor.business_id:
         raise not_found("choice group")
     existing = {o.id: o for o in repo.options([gid])}

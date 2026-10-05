@@ -31,7 +31,7 @@ export const FEATURES: FeatureDefinition[] = [
   { key: 'ingredients', name: 'Ingredient Tracking', description: 'Track raw ingredients and connect them to product recipes.' },
   { key: 'lowStockAlerts', name: 'Low Stock Alerts', description: 'Show warnings when inventory or ingredients reach their configured threshold.' },
   { key: 'orderAlerts', name: 'Order Alerts', description: 'Notify staff about important order status changes or waiting orders.' },
-  { key: 'liveUpdates', name: 'Live Updates', description: 'Keep orders and screens updated across terminals without refreshing.' },
+  { key: 'liveUpdates', name: 'Live Updates', description: 'Keep the Orders board (every 15 s) and POS stock (every 30 s) updated across terminals without refreshing.' },
   { key: 'soundEffects', name: 'Sound Effects', description: 'Play short sounds for new orders, alerts, and completed payments.' },
 ];
 
@@ -68,4 +68,6 @@ export const saveFeatureSettings = (flags: FeatureFlags) => store.save(flags);
 
 
 /** Stored and shown in Settings, but nothing acts on them yet (real-time transport Q-ARCH-3 is open). */
-export const INACTIVE_FEATURES: readonly FeatureKey[] = ['lowStockAlerts', 'orderAlerts', 'liveUpdates', 'soundEffects'];
+/** Features that are saved but not acted on. All four former entries (alerts, live updates, sounds) are
+ *  now implemented (polling-based live updates; on-screen alerts; WebAudio sounds). */
+export const INACTIVE_FEATURES: readonly FeatureKey[] = [];

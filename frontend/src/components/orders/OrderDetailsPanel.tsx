@@ -1,7 +1,15 @@
+import { useState } from 'react';
 import { CheckCircle2, ChefHat, ClipboardList, Eye, NotebookPen, Printer, Wallet } from 'lucide-react';
 import Badge, { type BadgeTone } from '../ui/Badge';
 import Button from '../ui/Button';
 import EmptyState from '../ui/EmptyState';
+import Modal from '../ui/Modal';
+import ReceiptPreview from '../receipts/ReceiptPreview';
+import { listDocuments } from '../../services/documentService';
+import { errorMessage } from '../../services/api';
+import { businessInfo, receiptFromDocument } from '../../utils/apiMappers';
+import { printKitchenTicket } from '../../utils/kitchenTicket';
+import type { DocumentDto } from '../../types/api';
 import PaymentPanel from './PaymentPanel';
 import { useTerms } from '../../stores/terminologySettingsStore';
 import { can, useAuth } from '../../stores/authStore';
@@ -57,6 +65,16 @@ function PrimaryAction({ order, onAdvance, onCollect }: { order: Order; onAdvanc
 }
 
 function Details({ order, now, onAdvance, onPay, collecting, onCollectingChange: setCollecting, onCancel, onConfirmPayment, onVoidPayment }: OrderDetailsPanelProps & { order: Order }) {
+  const [receipt, setReceipt] = useState<{ state: 'idle' | 'loading' | 'open' | 'error'; doc?: DocumentDto; error?: string }>({ state: 'idle' });
+  const openReceipt = async () => {
+    setReceipt({ state: 'loading' });
+    try {
+      const doc = (await listDocuments()).find((d) => d.order_id === order.id && d.document_type === 'sales');
+      setReceipt(doc ? { state: 'open', doc } : { state: 'error', error: 'No receipt has been issued for this order yet.' });
+    } catch (err) {
+      setReceipt({ state: 'error', error: errorMessage(err) });
+    }
+  };
   const totals = orderTotals(order);
   const badge = statusBadge[order.status];
   const { term } = useTerms();
@@ -200,14 +218,39 @@ function Details({ order, now, onAdvance, onPay, collecting, onCollectingChange:
       <div className="details-panel__footer">
         <PrimaryAction order={order} onAdvance={() => onAdvance(order)} onCollect={() => setCollecting(true)} />
         <div className="details-panel__secondary">
-          <Button icon={<Printer size={15} />} disabled title="Available in a later phase">
+          <Button
+            icon={<Printer size={15} />}
+            title="Print a preparation slip (not a receipt)"
+            onClick={() =>
+              printKitchenTicket({
+                number: order.number,
+                orderType: orderTypeLabel(order),
+                placedAt: order.placedAt,
+                note: order.note,
+                items: order.items.map((i) => ({ name: i.name, quantity: i.quantity, choices: i.choices })),
+              })
+            }
+          >
             Kitchen Ticket
           </Button>
-          <Button icon={<Eye size={15} />} disabled title="Available in a later phase">
+          <Button
+            icon={<Eye size={15} />}
+            disabled={order.payment.status !== 'paid' || !can(user, 'receipts.view') || receipt.state === 'loading'}
+            title={order.payment.status !== 'paid' ? 'A receipt is issued when the order is paid in full' : 'View the issued receipt'}
+            onClick={() => void openReceipt()}
+          >
             View Receipt
           </Button>
         </div>
+        {receipt.state === 'error' && (
+          <div className="api-status api-status--error" role="alert">
+            {receipt.error}
+          </div>
+        )}
       </div>
+      <Modal open={receipt.state === 'open'} onClose={() => setReceipt({ state: 'idle' })} size="sm" title={`Receipt · Order #${order.number}`}>
+        {receipt.doc && <ReceiptPreview receipt={receiptFromDocument(receipt.doc)} business={businessInfo(receipt.doc)} />}
+      </Modal>
     </>
   );
 }

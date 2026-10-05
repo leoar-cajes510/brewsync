@@ -171,10 +171,10 @@ export default function CartPanel({
           {submitting ? (chargeLabel ? 'Checking…' : 'Placing Order…') : chargeLabel ?? `Place Order · ${formatPeso(totals.total)}`}
         </Button>
         <div className="cart-panel__secondary">
-          <Button icon={<Split size={15} />} disabled title="Available in a later phase">
+          <Button icon={<Split size={15} />} disabled title="Not offered: split one order across several payments in Checkout instead (splitting into separate orders is an undecided business rule)">
             Split Bill
           </Button>
-          <Button icon={<PauseCircle size={15} />} disabled title="Available in a later phase">
+          <Button icon={<PauseCircle size={15} />} disabled title="Not offered: place the order and collect payment later (orders can stay unpaid until completion)">
             Hold Order
           </Button>
         </div>

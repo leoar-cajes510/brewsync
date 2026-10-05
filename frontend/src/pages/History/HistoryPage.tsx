@@ -14,6 +14,7 @@ import type { Transaction } from '../../types/receipt';
 import type { DocumentDto, HistoryOrderDto } from '../../types/api';
 import { errorMessage } from '../../services/api';
 import { formatPeso } from '../../utils/currency';
+import { exportReceipts, isoDate } from '../../utils/csv';
 import { history, historyDetail, refundOrder } from '../../services/orderService';
 import { printDocument } from '../../services/documentService';
 import { receiptTotals } from '../../utils/receipt';
@@ -203,6 +204,7 @@ export default function HistoryPage() {
           onChange={updateFilters}
           cashiers={cashiers}
           todayLabel={now.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+          onExport={filtered.length ? () => exportReceipts(`brewsync-history-${isoDate()}.csv`, filtered) : undefined}
         />
 
         <div className="history__table">{table}</div>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Modal from '../ui/Modal';
-import { errorMessage, newIdempotencyKey } from '../../services/api';
+import { errorMessage, isUnknownOutcome, newIdempotencyKey } from '../../services/api';
 import type { Transaction } from '../../types/receipt';
 import { formatPeso } from '../../utils/currency';
 
@@ -24,6 +24,9 @@ export default function RefundDialog({ transaction: t, amount, onClose, onRefund
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  // No answer from the server: the refund may exist. Freeze the form so the retry is the SAME request
+  // (same key → replayed by the server), never a second refund.
+  const [uncertain, setUncertain] = useState(false);
   // One key per dialog: retrying after a network error cannot record a second refund.
   const [key, setKey] = useState(newIdempotencyKey);
 
@@ -33,6 +36,7 @@ export default function RefundDialog({ transaction: t, amount, onClose, onRefund
     setPartial('');
     setSubmitted(false);
     setServerError(null);
+    setUncertain(false);
     setKey(newIdempotencyKey());
   }, [t]);
 
@@ -51,6 +55,7 @@ export default function RefundDialog({ transaction: t, amount, onClose, onRefund
   const refundAmount = mode === 'partial' && !amountError ? partialValue : amount;
   // A different request needs a different key; the same request keeps it (safe retry).
   const change = <T,>(setter: (v: T) => void) => (v: T) => {
+    if (uncertain) return;
     setter(v);
     setKey(newIdempotencyKey());
   };
@@ -62,8 +67,16 @@ export default function RefundDialog({ transaction: t, amount, onClose, onRefund
     setServerError(null);
     try {
       await onRefund(t, reason.trim(), key, mode === 'partial' ? partialValue.toFixed(2) : undefined);
+      setUncertain(false);
     } catch (err) {
-      setServerError(errorMessage(err));
+      if (isUnknownOutcome(err)) {
+        setUncertain(true);
+        setServerError('No answer from the server — the refund may already be recorded. Press the button again to check; it will not be refunded twice.');
+      } else {
+        setUncertain(false);
+        setKey(newIdempotencyKey()); // a definite refusal: a corrected request is a new request
+        setServerError(errorMessage(err));
+      }
     } finally {
       setSaving(false);
     }
@@ -113,7 +126,8 @@ export default function RefundDialog({ transaction: t, amount, onClose, onRefund
           value={reason}
           maxLength={MAX_REASON}
           autoFocus
-          onChange={(e) => setReason(e.target.value)}
+          readOnly={uncertain}
+          onChange={(e) => !uncertain && setReason(e.target.value)}
           error={submitted ? reasonError : undefined}
         />
         {serverError && (

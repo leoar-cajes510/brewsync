@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { downloadCsv, isoDate } from '../../utils/csv';
+import { printHtml, stockTagHtml } from '../../utils/kitchenTicket';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Ban, Boxes, Download, PackageOpen, Printer, SearchX, ShoppingCart, SlidersHorizontal, Warehouse, X } from 'lucide-react';
 import Button from '../../components/ui/Button';
@@ -50,7 +52,7 @@ export default function AdminInventoryPage() {
 
   const categories = useMemo(() => [...new Set(items.map((i) => i.product.category))].sort((a, b) => a.localeCompare(b)), [items]);
   const counts = useMemo(() => {
-    const s = items.map((i) => stockStatus(i.product.stock, i.record.threshold));
+    const s = items.map((i) => stockStatus(i.product.sellable, i.record.threshold));
     return {
       total: items.length,
       active: items.filter((i) => i.product.active).length,
@@ -65,7 +67,7 @@ export default function AdminInventoryPage() {
     return items.filter(
       ({ product, record }) =>
         (category === ALL || product.category === category) &&
-        (status === 'all' || stockStatus(product.stock, record.threshold) === status) &&
+        (status === 'all' || stockStatus(product.sellable, record.threshold) === status) &&
         (!q || product.name.toLowerCase().includes(q) || product.code.toLowerCase().includes(q)),
     );
   }, [items, category, status, query]);
@@ -211,7 +213,21 @@ export default function AdminInventoryPage() {
               ]}
             />
             <div className="inv-filters__actions">
-              <Button icon={<Download size={15} />} disabled title="Available in a later phase">
+              <Button
+                icon={<Download size={15} />}
+                disabled={!filtered.length}
+                title="Export the listed stock levels (CSV)"
+                onClick={() =>
+                  downloadCsv(
+                    `brewsync-inventory-${isoDate()}.csv`,
+                    ['Code', 'Name', 'Category', 'On Hand', 'Available', 'Reserved', 'Low-Stock Threshold', 'Status'],
+                    filtered.map(({ product, record }) => [
+                      product.code, product.name, product.category, product.stock, product.sellable,
+                      Math.max(0, product.stock - product.sellable), record.threshold, stockStatus(product.sellable, record.threshold),
+                    ]),
+                  )
+                }
+              >
                 Export Inventory
               </Button>
               <Button variant="primary" icon={<SlidersHorizontal size={15} />} disabled={noItems} onClick={() => selected && setAdjust({ productId: selected.product.id })}>
@@ -308,7 +324,7 @@ export default function AdminInventoryPage() {
                       </span>
                     )}
                   </div>
-                  <StockBadge status={stockStatus(selected.product.stock, selected.record.threshold)} />
+                  <StockBadge status={stockStatus(selected.product.sellable, selected.record.threshold)} />
                 </div>
 
                 {actionError && (
@@ -348,7 +364,11 @@ export default function AdminInventoryPage() {
                 <Button icon={<SlidersHorizontal size={15} />} onClick={() => setAdjust({ productId: selected.product.id })}>
                   Stock Adjustment
                 </Button>
-                <Button icon={<Printer size={15} />} disabled title="Available in a later phase">
+                <Button
+                  icon={<Printer size={15} />}
+                  title="Print a shelf tag with the product code and name"
+                  onClick={() => printHtml(stockTagHtml(selected.product))}
+                >
                   Print Stock Tag
                 </Button>
               </footer>

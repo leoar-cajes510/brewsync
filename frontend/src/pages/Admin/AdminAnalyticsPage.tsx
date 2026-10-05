@@ -82,7 +82,7 @@ export default function AdminAnalyticsPage() {
   }, [source, range, compare]);
 
   const lowStock = useMemo(
-    () => products.filter((p) => inventory[p.id] && stockStatus(p.stock, inventory[p.id].threshold) !== 'in').map((p) => ({ name: p.name, stock: p.stock })),
+    () => products.filter((p) => inventory[p.id] && stockStatus(p.sellable, inventory[p.id].threshold) !== 'in').map((p) => ({ name: p.name, stock: p.sellable })),
     [products, inventory],
   );
 

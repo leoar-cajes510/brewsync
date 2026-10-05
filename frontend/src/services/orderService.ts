@@ -29,7 +29,8 @@ export const createOrder = (input: OrderInput, idempotencyKey: string) => api.po
 export const submissionStatus = (idempotencyKey: string) =>
   api.get<{ status: 'created' | 'not_created'; order?: OrderDto }>(`/orders/submissions/${encodeURIComponent(idempotencyKey)}`);
 
-export const listActiveOrders = () => api.get<OrderDto[]>('/orders?status=pending,preparing,ready');
+export const listActiveOrders = (background = false) =>
+  (background ? api.poll : api.get)<OrderDto[]>('/orders?status=pending,preparing,ready');
 export const getOrder = (id: string) => api.get<OrderDto>(`/orders/${id}`);
 
 export const changeStatus = (order: Pick<OrderDto, 'id' | 'version'>, target: OrderStatusDto) =>
